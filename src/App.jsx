@@ -3,18 +3,18 @@ import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio,
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
-  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. You will hear this extract three times.', source: null },
-  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. You will hear this extract three times.', source: null },
-  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. You will hear this extract three times.', source: null },
-  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. You will hear this extract three times.', source: null },
-  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. You will hear this extract three times.', source: null },
-  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
-  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. You will hear this extract three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. You will hear this extract three times. This is the final extract.', source: null },
+  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 1. You will hear this extract three times.', source: null },
+  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 2. You will hear this extract three times.', source: null },
+  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Extract 3. You will hear this extract three times.', source: null },
+  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 4. You will hear this extract three times.', source: null },
+  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 5. You will hear this extract three times.', source: null },
+  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Extract 6. You will hear this extract two times.', source: null },
+  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Extract 7. You will hear this extract three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Extract 8. You will hear this extract three times. This is the final extract.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Trinity School Examinations. Music Listening and Appraising. This exam will last for 1 hour and 30 minutes.',
+  opening: 'This is the Music listening examination. You will now have five minutes to read through all of the listening questions. You may not write anything during this time.',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
   betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
@@ -22,7 +22,7 @@ const DEFAULT_SCRIPT = {
 };
 
 const ORDINAL_WORDS = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
- 
+
 let pdfjsPromise = null;
 function loadPdfJs() {
   if (pdfjsPromise) return pdfjsPromise;
@@ -39,13 +39,13 @@ function loadPdfJs() {
   });
   return pdfjsPromise;
 }
- 
+
 // Word-to-number converter for "three times" -> 3
 const NUMBER_WORDS = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   once: 1, twice: 2, thrice: 3,
 };
- 
+
 function parsePlaysCount(text) {
   // Try digit first: "3 times", "hear this 3 times"
   const digitMatch = text.match(/(\d+)\s*times?/i);
@@ -57,13 +57,13 @@ function parsePlaysCount(text) {
   }
   return null;
 }
- 
+
 // Parse a music exam PDF and return detected extracts
 async function parseExamPdf(file) {
   const pdfjs = await loadPdfJs();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
- 
+
   // Collect text page-by-page so we can locate extract headings
   const pages = [];
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -85,10 +85,10 @@ async function parseExamPdf(file) {
     if (currentLine.trim()) lines.push(currentLine.trim());
     pages.push({ pageNum: i, lines, raw: lines.join('\n') });
   }
- 
+
   // Combined text for global searches
   const fullText = pages.map(p => p.raw).join('\n');
- 
+
   // === Extract title (best effort) ===
   let title = '';
   for (const line of pages[0]?.lines || []) {
@@ -97,7 +97,7 @@ async function parseExamPdf(file) {
       if (title.length > 60) break;
     }
   }
- 
+
   // === Pull marks table (if present) ===
   // Looks for patterns like "Extract 1 12" or "Extract 1   12 marks"
   const marksMap = new Map();
@@ -110,12 +110,12 @@ async function parseExamPdf(file) {
       marksMap.set(num, marks);
     }
   }
- 
+
   // === Find extract headings + plays count ===
   // For each "Extract N" heading, look at the next ~200 chars for play count info
   const extractRegex = /(?:^|\n|\s)(Extract|Question)\s+(\d+)\b/gi;
   const extracts = new Map(); // num -> {label, plays, raw context}
- 
+
   let match;
   while ((match = extractRegex.exec(fullText)) !== null) {
     const kind = match[1]; // "Extract" or "Question"
@@ -133,10 +133,10 @@ async function parseExamPdf(file) {
       });
     }
   }
- 
+
   // Sort by number
   const sorted = Array.from(extracts.values()).sort((a, b) => a.num - b.num);
- 
+
   return {
     title,
     pageCount: pdf.numPages,
@@ -145,32 +145,32 @@ async function parseExamPdf(file) {
     fullText, // returned for debugging if needed
   };
 }
- 
+
 function buildIntroForExtract(label, plays, isLast = false) {
   const word = plays === 1 ? 'once' : plays === 2 ? 'two times' : plays === 3 ? 'three times' : `${plays} times`;
   return `${label}. You will hear this extract ${word}.${isLast ? ' This is the final extract.' : ''}`;
 }
- 
+
 function renderBetweenPlays(template, playNumber, isFinal) {
   return template
     .replace(/\{n\}/g, String(playNumber))
     .replace(/\{ord\}/g, ORDINAL_WORDS[playNumber] || ordinal(playNumber))
     .replace(/\{final\}/g, isFinal ? ' and final' : '');
 }
- 
+
 function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
- 
+
 function formatTime(seconds) {
   if (!isFinite(seconds)) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
- 
+
 function parseTimestamp(str) {
   if (!str) return 0;
   str = String(str).trim();
@@ -186,7 +186,7 @@ function parseTimestamp(str) {
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   return 0;
 }
- 
+
 function extractYouTubeId(url) {
   if (!url) return null;
   const patterns = [
@@ -199,7 +199,7 @@ function extractYouTubeId(url) {
   }
   return null;
 }
- 
+
 // ===== Spotify helpers =====
 function extractSpotifyId(url, kind) {
   // kind: 'track' | 'playlist'
@@ -214,7 +214,7 @@ function extractSpotifyId(url, kind) {
   if (/^[a-zA-Z0-9]{20,24}$/.test(trimmed)) return trimmed;
   return null;
 }
- 
+
 // ===== Spotify PKCE OAuth =====
 // Generate cryptographically random string for PKCE verifier
 function generateRandomString(length) {
@@ -223,7 +223,7 @@ function generateRandomString(length) {
   window.crypto.getRandomValues(arr);
   return Array.from(arr).map(x => possible[x % possible.length]).join('');
 }
- 
+
 // SHA256 hash + base64url-encode (for PKCE challenge)
 async function sha256Base64Url(input) {
   const data = new TextEncoder().encode(input);
@@ -233,14 +233,14 @@ async function sha256Base64Url(input) {
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
- 
+
 async function startSpotifyPkceFlow(clientId, redirectUri) {
   const verifier = generateRandomString(64);
   const challenge = await sha256Base64Url(verifier);
   sessionStorage.setItem('aural_spotify_pkce_verifier', verifier);
   sessionStorage.setItem('aural_spotify_pkce_client_id', clientId);
   sessionStorage.setItem('aural_spotify_pkce_redirect', redirectUri);
- 
+
   const scopes = [
     'streaming',
     'user-read-email',
@@ -250,7 +250,7 @@ async function startSpotifyPkceFlow(clientId, redirectUri) {
     'playlist-read-private',
     'playlist-read-collaborative',
   ].join(' ');
- 
+
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -261,7 +261,7 @@ async function startSpotifyPkceFlow(clientId, redirectUri) {
   });
   window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
- 
+
 // Exchange the code returned by Spotify for an access token
 async function exchangeSpotifyCode(code) {
   const verifier = sessionStorage.getItem('aural_spotify_pkce_verifier');
@@ -296,7 +296,7 @@ async function exchangeSpotifyCode(code) {
     clientId,
   };
 }
- 
+
 // Check the current URL for a Spotify auth code (after redirect)
 function getSpotifyAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -308,7 +308,7 @@ function getSpotifyAuthCodeFromUrl() {
   if (error) return { error };
   return { code };
 }
- 
+
 // Refresh an expired token using its refresh token
 async function refreshSpotifyToken(refreshToken, clientId) {
   const params = new URLSearchParams({
@@ -330,7 +330,7 @@ async function refreshSpotifyToken(refreshToken, clientId) {
     clientId,
   };
 }
- 
+
 let spotifySdkPromise = null;
 function loadSpotifySDK() {
   if (spotifySdkPromise) return spotifySdkPromise;
@@ -343,7 +343,7 @@ function loadSpotifySDK() {
   });
   return spotifySdkPromise;
 }
- 
+
 // ===== YouTube IFrame API =====
 let ytApiPromise = null;
 function loadYouTubeAPI() {
@@ -357,14 +357,14 @@ function loadYouTubeAPI() {
   });
   return ytApiPromise;
 }
- 
+
 export default function App() {
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [readingTime, setReadingTime] = useState(300);
   const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
- 
+
   const [ttsProvider, setTtsProvider] = useState(() => localStorage.getItem('aural_tts_provider') || 'browser');
   const [elevenKey, setElevenKey] = useState(() => localStorage.getItem('aural_eleven_key') || '');
   const [elevenVoiceId, setElevenVoiceId] = useState(() => localStorage.getItem('aural_eleven_voice') || 'EXAVITQu4vr4xnSDxMaL');
@@ -375,7 +375,7 @@ export default function App() {
   const [speechRate, setSpeechRate] = useState(0.95);
   const [speechPitch, setSpeechPitch] = useState(1);
   const [ttsTestStatus, setTtsTestStatus] = useState(null);
- 
+
   const [previewingId, setPreviewingId] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileProgress, setCompileProgress] = useState(0);
@@ -385,7 +385,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [shortReadingForTesting, setShortReadingForTesting] = useState(false);
   const [livePlaying, setLivePlaying] = useState(false);
- 
+
   // ===== Spotify state =====
   const [spotifyClientId, setSpotifyClientId] = useState(() => localStorage.getItem('aural_spotify_client_id') || '');
   const [spotifyToken, setSpotifyToken] = useState(() => {
@@ -404,7 +404,7 @@ export default function App() {
   const [spotifyPlaylistName, setSpotifyPlaylistName] = useState('');
   const [spotifyPlaylistUrl, setSpotifyPlaylistUrl] = useState('');
   const [spotifyLoading, setSpotifyLoading] = useState(false);
- 
+
   const audioContextRef = useRef(null);
   const previewStopRef = useRef(null);
   const ytPlayerRef = useRef(null);
@@ -413,7 +413,7 @@ export default function App() {
   const liveStopRef = useRef({ stopped: false });
   const spotifyPlayerRef = useRef(null);
   const spotifyPreviewBufferCache = useRef(new Map()); // url -> AudioBuffer
- 
+
   // Capture Spotify OAuth callback on mount (PKCE code → token exchange)
   useEffect(() => {
     const callback = getSpotifyAuthCodeFromUrl();
@@ -434,12 +434,12 @@ export default function App() {
       }
     })();
   }, []);
- 
+
   // Persist client ID
   useEffect(() => {
     if (spotifyClientId) localStorage.setItem('aural_spotify_client_id', spotifyClientId);
   }, [spotifyClientId]);
- 
+
   // Fetch Spotify user profile when token is available
   useEffect(() => {
     if (!spotifyToken) { setSpotifyUser(null); return; }
@@ -449,7 +449,7 @@ export default function App() {
       .then(setSpotifyUser)
       .catch(() => setSpotifyUser(null));
   }, [spotifyToken]);
- 
+
   // Initialise Spotify Web Playback SDK when token available
   useEffect(() => {
     if (!spotifyToken) return;
@@ -481,13 +481,13 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [spotifyToken]);
- 
+
   useEffect(() => { localStorage.setItem('aural_tts_provider', ttsProvider); }, [ttsProvider]);
   useEffect(() => { localStorage.setItem('aural_eleven_key', elevenKey); }, [elevenKey]);
   useEffect(() => { localStorage.setItem('aural_eleven_voice', elevenVoiceId); }, [elevenVoiceId]);
   useEffect(() => { localStorage.setItem('aural_openai_key', openaiKey); }, [openaiKey]);
   useEffect(() => { localStorage.setItem('aural_openai_voice', openaiVoice); }, [openaiVoice]);
- 
+
   useEffect(() => {
     function loadVoices() {
       const v = window.speechSynthesis.getVoices();
@@ -510,20 +510,20 @@ export default function App() {
     window.speechSynthesis.onvoiceschanged = loadVoices;
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
- 
+
   useEffect(() => { loadYouTubeAPI(); }, []);
- 
+
   const getAudioContext = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     return audioContextRef.current;
   };
- 
+
   const setSource = (questionId, source) => {
     setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, source } : q));
   };
- 
+
   const handleFileUpload = async (questionId, file) => {
     if (!file) return;
     try {
@@ -535,7 +535,7 @@ export default function App() {
       alert(`Could not decode audio file: ${err.message}`);
     }
   };
- 
+
   const handleYouTubeSet = (questionId, { url, startStr, endStr }) => {
     const videoId = extractYouTubeId(url);
     if (!videoId) { alert('Could not parse YouTube URL.'); return; }
@@ -544,7 +544,7 @@ export default function App() {
     if (end <= start) { alert('End timestamp must be later than start timestamp.'); return; }
     setSource(questionId, { kind: 'youtube', videoId, url, start, end, duration: end - start, startStr, endStr });
   };
- 
+
   // ===== Spotify handlers =====
   const spotifyConnect = async () => {
     if (!spotifyClientId) {
@@ -559,7 +559,7 @@ export default function App() {
       alert(`Could not start Spotify login: ${err.message}`);
     }
   };
- 
+
   const spotifyDisconnect = () => {
     setSpotifyToken(null);
     setSpotifyUser(null);
@@ -571,10 +571,10 @@ export default function App() {
       spotifyPlayerRef.current = null;
     }
   };
- 
+
   const spotifyFetch = async (url) => {
     if (!spotifyToken) throw new Error('Not connected to Spotify');
- 
+
     // Pre-emptively refresh if within 60s of expiry
     let tokenToUse = spotifyToken;
     if (tokenToUse.refreshToken && tokenToUse.expiresAt && tokenToUse.expiresAt - Date.now() < 60_000) {
@@ -585,7 +585,7 @@ export default function App() {
         tokenToUse = fresh;
       } catch (e) { console.warn('Token refresh failed:', e); }
     }
- 
+
     let res = await fetch(url, { headers: { Authorization: `Bearer ${tokenToUse.token}` } });
     if (res.status === 401 && tokenToUse.refreshToken) {
       // Retry once with a refreshed token
@@ -606,7 +606,7 @@ export default function App() {
     if (!res.ok) throw new Error(`Spotify API error: ${res.status}`);
     return res.json();
   };
- 
+
   const importSpotifyPlaylist = async () => {
     const playlistId = extractSpotifyId(spotifyPlaylistUrl, 'playlist');
     if (!playlistId) { alert('Could not parse Spotify playlist URL/ID.'); return; }
@@ -614,7 +614,7 @@ export default function App() {
     try {
       const meta = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description`);
       setSpotifyPlaylistName(meta.name);
- 
+
       let allTracks = [];
       // Spotify renamed /tracks → /items in Feb 2026. Response field renames: items[].track → items[].item
       // We support both shapes for safety.
@@ -654,7 +654,7 @@ export default function App() {
       setSpotifyLoading(false);
     }
   };
- 
+
   const importSpotifyTrack = async () => {
     const trackId = extractSpotifyId(spotifyPlaylistUrl, 'track');
     if (!trackId) { alert('Could not parse Spotify track URL/ID.'); return; }
@@ -677,14 +677,14 @@ export default function App() {
       setSpotifyLoading(false);
     }
   };
- 
+
   const assignSpotifyTrackToQuestion = (questionId, track, startStr = '0:00', endStr = null) => {
     const start = parseTimestamp(startStr);
     const trackDurSec = track.durationMs / 1000;
     const end = endStr ? parseTimestamp(endStr) : trackDurSec;
     if (end <= start) { alert('End must be later than start.'); return; }
     if (end > trackDurSec + 0.5) { alert(`Track is only ${formatTime(trackDurSec)} long. End time exceeds track length.`); return; }
- 
+
     setSource(questionId, {
       kind: 'spotify',
       trackId: track.id,
@@ -701,7 +701,7 @@ export default function App() {
       endStr: endStr || formatTime(end),
     });
   };
- 
+
   // Fetch a single Spotify track by URL/URI and assign to a question (used by per-extract Spotify tab)
   const handleSpotifyTrackAdd = async (questionId, url, startStr, endStr) => {
     const trackId = extractSpotifyId(url, 'track');
@@ -719,7 +719,7 @@ export default function App() {
       alert(`Could not load track: ${err.message}`);
     }
   };
- 
+
   // Play a Spotify segment via the Web Playback SDK
   const playSpotifySegment = async (uri, startSec, endSec) => {
     if (!spotifyDeviceId || !spotifyToken) {
@@ -748,7 +748,7 @@ export default function App() {
       });
     } catch (e) {}
   };
- 
+
   // Load and decode a Spotify preview URL into an AudioBuffer (used for WAV export when clip fits in 30s preview)
   const loadSpotifyPreviewBuffer = async (previewUrl) => {
     if (!previewUrl) return null;
@@ -765,12 +765,12 @@ export default function App() {
       return null;
     }
   };
- 
+
   const clearSource = (questionId) => setSource(questionId, null);
   const updateQuestion = (id, field, value) => {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, [field]: value } : q));
   };
- 
+
   // ===== Question CRUD =====
   const addQuestion = (afterIndex = null) => {
     setQuestions(prev => {
@@ -791,12 +791,12 @@ export default function App() {
       return copy;
     });
   };
- 
+
   const deleteQuestion = (id) => {
     if (!confirm('Delete this extract?')) return;
     setQuestions(prev => prev.filter(q => q.id !== id));
   };
- 
+
   const moveQuestion = (id, direction) => {
     setQuestions(prev => {
       const idx = prev.findIndex(q => q.id === id);
@@ -808,7 +808,7 @@ export default function App() {
       return copy;
     });
   };
- 
+
   const moveQuestionTo = (fromIndex, toIndex) => {
     setQuestions(prev => {
       if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) return prev;
@@ -818,11 +818,11 @@ export default function App() {
       return copy;
     });
   };
- 
+
   // ===== PDF parsing =====
   const [pdfParsing, setPdfParsing] = useState(false);
   const [pdfDetectionInfo, setPdfDetectionInfo] = useState(null); // { title, count, marksFound }
- 
+
   const handleExamPdfDrop = async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -838,7 +838,7 @@ export default function App() {
         setPdfParsing(false);
         return;
       }
- 
+
       // Confirm before overwriting if user already has data
       const anyFilled = questions.some(q => q.source);
       if (anyFilled) {
@@ -847,7 +847,7 @@ export default function App() {
           return;
         }
       }
- 
+
       const newQuestions = result.extracts.map((ex, i) => {
         const isLast = i === result.extracts.length - 1;
         return {
@@ -875,7 +875,7 @@ export default function App() {
       setPdfParsing(false);
     }
   };
- 
+
   // ===== Save / load exam config =====
   const saveExamConfig = () => {
     const config = buildConfig();
@@ -887,7 +887,7 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   };
- 
+
   const loadExamConfig = async (file) => {
     if (!file) return;
     try {
@@ -900,7 +900,7 @@ export default function App() {
       alert(`Could not load config: ${err.message}`);
     }
   };
- 
+
   // Apply a config object to current state
   const applyConfig = (config) => {
     setExamTitle(config.examTitle || '');
@@ -911,7 +911,7 @@ export default function App() {
       source: q.source && q.source.kind !== 'file' ? q.source : null,
     })));
   };
- 
+
   // Build a config object from current state
   const buildConfig = () => ({
     version: 1,
@@ -930,24 +930,24 @@ export default function App() {
       source: q.source && q.source.kind !== 'file' ? q.source : null,
     })),
   });
- 
+
   // ===== Browser-stored exam library =====
   const SAVED_EXAMS_KEY = 'aural_saved_exams';
- 
+
   const [savedExams, setSavedExams] = useState(() => {
     try {
       const raw = localStorage.getItem(SAVED_EXAMS_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch (e) { return []; }
   });
- 
+
   const persistSavedExams = (list) => {
     setSavedExams(list);
     try { localStorage.setItem(SAVED_EXAMS_KEY, JSON.stringify(list)); } catch (e) {
       alert('Could not save: browser storage may be full.');
     }
   };
- 
+
   const saveCurrentExam = () => {
     const defaultName = examTitle || `Exam ${new Date().toLocaleDateString()}`;
     const name = prompt('Save this exam as:', defaultName);
@@ -963,7 +963,7 @@ export default function App() {
     const filtered = savedExams.filter(x => x.name !== name);
     persistSavedExams([entry, ...filtered]);
   };
- 
+
   const updateExistingExam = (examId) => {
     const idx = savedExams.findIndex(x => x.id === examId);
     if (idx === -1) return;
@@ -972,7 +972,7 @@ export default function App() {
     updated[idx] = { ...updated[idx], config: buildConfig(), savedAt: new Date().toISOString() };
     persistSavedExams(updated);
   };
- 
+
   const loadSavedExam = (examId) => {
     const entry = savedExams.find(x => x.id === examId);
     if (!entry) return;
@@ -980,7 +980,7 @@ export default function App() {
     if (anyFilled && !confirm(`Load "${entry.name}"? Uploaded audio in the current exam will be cleared (other sources are kept).`)) return;
     applyConfig(entry.config);
   };
- 
+
   const renameSavedExam = (examId) => {
     const entry = savedExams.find(x => x.id === examId);
     if (!entry) return;
@@ -988,14 +988,14 @@ export default function App() {
     if (!newName || newName === entry.name) return;
     persistSavedExams(savedExams.map(x => x.id === examId ? { ...x, name: newName } : x));
   };
- 
+
   const deleteSavedExam = (examId) => {
     const entry = savedExams.find(x => x.id === examId);
     if (!entry) return;
     if (!confirm(`Delete "${entry.name}"? This cannot be undone.`)) return;
     persistSavedExams(savedExams.filter(x => x.id !== examId));
   };
- 
+
   const newBlankExam = () => {
     if (!confirm('Start a fresh exam? Current settings will be cleared (you can save first if needed).')) return;
     setExamTitle('Untitled exam');
@@ -1003,16 +1003,16 @@ export default function App() {
     setScript(DEFAULT_SCRIPT);
     setReadingTime(300);
   };
- 
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
- 
+
   const estimateSpeechDuration = (text) => {
     const words = text.trim().split(/\s+/).length;
     return (words / 150) * 60 + 0.8;
   };
- 
+
   const cacheKey = (text) => `${ttsProvider}|${ttsProvider === 'eleven' ? elevenVoiceId : ttsProvider === 'openai' ? openaiVoice : browserVoiceName}|${speechRate}|${text}`;
- 
+
   const renderTTSBuffer = async (text) => {
     const key = cacheKey(text);
     if (ttsCacheRef.current.has(key)) return ttsCacheRef.current.get(key);
@@ -1022,7 +1022,7 @@ export default function App() {
     if (buffer) ttsCacheRef.current.set(key, buffer);
     return buffer;
   };
- 
+
   const renderElevenLabs = async (text) => {
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenVoiceId}`, {
       method: 'POST',
@@ -1040,7 +1040,7 @@ export default function App() {
     const arrayBuffer = await res.arrayBuffer();
     return await getAudioContext().decodeAudioData(arrayBuffer);
   };
- 
+
   const renderOpenAI = async (text) => {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
@@ -1054,7 +1054,7 @@ export default function App() {
     const arrayBuffer = await res.arrayBuffer();
     return await getAudioContext().decodeAudioData(arrayBuffer);
   };
- 
+
   const speakLive = async (text) => {
     if (ttsProvider === 'browser' || (ttsProvider === 'eleven' && !elevenKey) || (ttsProvider === 'openai' && !openaiKey)) {
       return new Promise((resolve) => {
@@ -1091,7 +1091,7 @@ export default function App() {
       });
     }
   };
- 
+
   const testVoice = async () => {
     setTtsTestStatus('loading');
     try {
@@ -1103,23 +1103,23 @@ export default function App() {
       alert(`Voice test failed: ${err.message}`);
     }
   };
- 
+
   const buildTimeline = useCallback(() => {
     const timeline = [];
     let cursor = 0;
     const effectiveReading = shortReadingForTesting ? 10 : readingTime;
     const addTTS = (text) => { const d = estimateSpeechDuration(text); timeline.push({ type: 'tts', text, start: cursor, duration: d }); cursor += d; };
     const addSilence = (d, label) => { timeline.push({ type: 'silence', start: cursor, duration: d, label }); cursor += d; };
- 
+
     addTTS(script.opening);
     addSilence(effectiveReading, 'Reading time');
     addTTS(script.postReading);
     addSilence(2);
- 
+
     questions.forEach((q, qi) => {
       addTTS(q.intro);
       addSilence(1.5);
- 
+
       if (q.source) {
         for (let i = 0; i < q.plays; i++) {
           if (q.source.kind === 'file') {
@@ -1171,11 +1171,11 @@ export default function App() {
       }
       if (qi < questions.length - 1) addSilence(q.gapAfter, 'Answer time');
     });
- 
+
     addTTS(script.ending);
     return { timeline, totalDuration: cursor };
   }, [questions, readingTime, shortReadingForTesting, script]);
- 
+
   const previewQuestion = async (q) => {
     if (previewingId === q.id) { stopAll(); return; }
     setPreviewingId(q.id);
@@ -1183,10 +1183,10 @@ export default function App() {
       // Find the question's index to know if it's the last
       const qIdx = questions.findIndex(x => x.id === q.id);
       const isLast = qIdx === questions.length - 1;
- 
+
       // Intro
       await speakLive(q.intro);
- 
+
       // All plays + between announcements
       for (let i = 0; i < q.plays; i++) {
         if (q.source?.kind === 'file') {
@@ -1220,7 +1220,7 @@ export default function App() {
       setPreviewingId(null);
     }
   };
- 
+
   const stopAll = () => {
     window.speechSynthesis.cancel();
     if (previewStopRef.current) { previewStopRef.current.stop?.(); previewStopRef.current = null; }
@@ -1230,7 +1230,7 @@ export default function App() {
     setPreviewingId(null);
     setLivePlaying(false);
   };
- 
+
   const ensureYouTubePlayer = async () => {
     await loadYouTubeAPI();
     if (ytPlayerRef.current) return ytPlayerRef.current;
@@ -1242,7 +1242,7 @@ export default function App() {
       });
     });
   };
- 
+
   const playYouTubeSegment = async (videoId, startSec, endSec) => {
     const player = await ensureYouTubePlayer();
     return new Promise((resolve) => {
@@ -1265,7 +1265,7 @@ export default function App() {
       setTimeout(done, (endSec - startSec + 5) * 1000);
     });
   };
- 
+
   // ===== Live playback state =====
   const [livePaused, setLivePaused] = useState(false);
   const [liveItemIndex, setLiveItemIndex] = useState(0);
@@ -1280,7 +1280,7 @@ export default function App() {
     stopped: false,
     runId: 0,
   });
- 
+
   const describeItem = (item, timeline, idx) => {
     if (item.type === 'tts') return 'Announcement';
     if (item.type === 'silence') return item.label || 'Silence';
@@ -1291,7 +1291,7 @@ export default function App() {
     }
     return 'Playing...';
   };
- 
+
   const findExtractBoundary = (timeline, currentIdx, direction) => {
     // Find next/prev item where type is audio/youtube/spotify with playNumber === 1 (start of an extract)
     if (direction === 'next') {
@@ -1323,7 +1323,7 @@ export default function App() {
       return 0; // jump to start of timeline
     }
   };
- 
+
   const playLiveFull = async () => {
     if (livePlaying) {
       // Stop entirely
@@ -1333,7 +1333,7 @@ export default function App() {
       setLivePaused(false);
       return;
     }
- 
+
     const { timeline } = buildTimeline();
     const myRunId = (livePlaybackRef.current.runId || 0) + 1;
     livePlaybackRef.current = {
@@ -1348,20 +1348,20 @@ export default function App() {
     setLivePlaying(true);
     setLivePaused(false);
     setLiveTotalItems(timeline.length);
- 
+
     const ctx = getAudioContext();
     if (ctx.state === 'suspended') await ctx.resume();
- 
+
     while (livePlaybackRef.current.cursor < timeline.length) {
       if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
- 
+
       // Wait while paused
       while (livePlaybackRef.current.paused) {
         if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
         await new Promise(r => setTimeout(r, 100));
       }
       if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
- 
+
       // Handle skip requests
       if (livePlaybackRef.current.skipRequest === 'next-extract') {
         livePlaybackRef.current.cursor = findExtractBoundary(timeline, livePlaybackRef.current.cursor, 'next');
@@ -1376,36 +1376,36 @@ export default function App() {
         livePlaybackRef.current.skipRequest = null;
         continue;
       }
- 
+
       const idx = livePlaybackRef.current.cursor;
       const item = timeline[idx];
       setLiveItemIndex(idx);
       setLiveCurrentLabel(describeItem(item, timeline, idx));
- 
+
       try {
         await playLiveItem(item, ctx);
       } catch (e) {
         console.warn('Live item error:', e);
       }
- 
+
       // If a skip was requested DURING the item, the abort handler set skipRequest
       // and the loop will pick it up. Otherwise advance.
       if (!livePlaybackRef.current.skipRequest && !livePlaybackRef.current.stopped) {
         livePlaybackRef.current.cursor++;
       }
     }
- 
+
     setLivePlaying(false);
     setLivePaused(false);
     setLiveCurrentLabel('');
   };
- 
+
   // Play a single timeline item, returns when done or aborted
   const playLiveItem = (item, ctx) => {
     return new Promise((resolve) => {
       let done = false;
       const finish = () => { if (!done) { done = true; livePlaybackRef.current.abortCurrent = null; resolve(); } };
- 
+
       if (item.type === 'tts') {
         let utter = null;
         const abort = () => { try { window.speechSynthesis.cancel(); } catch (e) {} finish(); };
@@ -1463,7 +1463,7 @@ export default function App() {
       }
     });
   };
- 
+
   const pauseLive = () => {
     if (!livePlaying) return;
     livePlaybackRef.current.paused = true;
@@ -1474,7 +1474,7 @@ export default function App() {
     if (spotifyPlayerRef.current) { try { spotifyPlayerRef.current.pause(); } catch (e) {} }
     // Audio sources can't be paused; they keep playing until done. Acceptable for short clips.
   };
- 
+
   const resumeLive = () => {
     if (!livePlaying) return;
     livePlaybackRef.current.paused = false;
@@ -1483,33 +1483,33 @@ export default function App() {
     if (ytPlayerRef.current) { try { ytPlayerRef.current.playVideo(); } catch (e) {} }
     if (spotifyPlayerRef.current) { try { spotifyPlayerRef.current.resume(); } catch (e) {} }
   };
- 
+
   const skipToNextExtract = () => {
     if (!livePlaying) return;
     livePlaybackRef.current.skipRequest = 'next-extract';
     livePlaybackRef.current.abortCurrent?.('skip');
   };
- 
+
   const skipToPrevExtract = () => {
     if (!livePlaying) return;
     livePlaybackRef.current.skipRequest = 'prev-extract';
     livePlaybackRef.current.abortCurrent?.('skip');
   };
- 
+
   const skipCurrentItem = () => {
     if (!livePlaying) return;
     livePlaybackRef.current.skipRequest = 'skip-item';
     livePlaybackRef.current.abortCurrent?.('skip');
   };
- 
+
   const compileAudio = async () => {
     const filled = questions.filter(q => q.source);
     if (filled.length === 0) { alert('Add audio to at least one extract before compiling.'); return; }
- 
+
     const hasYouTube = filled.some(q => q.source.kind === 'youtube');
     const hasSpotify = filled.some(q => q.source.kind === 'spotify');
     const usingPremiumTTS = (ttsProvider === 'eleven' && elevenKey) || (ttsProvider === 'openai' && openaiKey);
- 
+
     // Collect warnings about what won't be in the WAV
     const warnings = [];
     if (!usingPremiumTTS) {
@@ -1517,7 +1517,7 @@ export default function App() {
     }
     if (hasYouTube) warnings.push('• YouTube clips will be silence in the WAV (DRM). They play correctly in live preview.');
     if (hasSpotify) warnings.push('• Spotify tracks will be silence in the WAV (DRM), unless the clip fits inside the first 30 seconds of a track that has a preview available. They play correctly in live preview.');
- 
+
     if (warnings.length > 0) {
       const lines = [
         'A few things to know about this WAV export:',
@@ -1529,28 +1529,28 @@ export default function App() {
       const ok = confirm(lines.join('\n'));
       if (!ok) return;
     }
- 
+
     setIsCompiling(true);
     setCompileProgress(0);
     setCompileStatus('Building timeline...');
- 
+
     try {
       const { timeline, totalDuration } = buildTimeline();
       const sampleRate = 44100;
       const numChannels = 2;
       const totalSamples = Math.ceil(totalDuration * sampleRate);
       const offlineCtx = new OfflineAudioContext(numChannels, totalSamples, sampleRate);
- 
+
       const ttsItems = timeline.filter(t => t.type === 'tts');
       const ttsBuffers = new Map();
       let ttsBakeMode = 'marker'; // 'marker' | 'eleven' | 'openai'
- 
+
       if (ttsProvider === 'eleven' && elevenKey) {
         ttsBakeMode = 'eleven';
       } else if (ttsProvider === 'openai' && openaiKey) {
         ttsBakeMode = 'openai';
       }
- 
+
       if (ttsBakeMode !== 'marker') {
         const providerName = ttsBakeMode === 'eleven' ? 'ElevenLabs' : 'OpenAI';
         let successCount = 0;
@@ -1583,10 +1583,10 @@ export default function App() {
           ttsBuffers.set(i, await makeMarkerTone(ttsItems[i].duration));
         }
       }
- 
+
       setCompileStatus('Stitching audio...');
       setCompileProgress(80);
- 
+
       // Pre-load any spotify preview buffers that fit within their clip range
       const spotifyItems = timeline.filter(t => t.type === 'spotify' && t.previewUrl && t.endSec <= 30);
       const spotifyPreviewBuffers = new Map();
@@ -1596,7 +1596,7 @@ export default function App() {
           if (buf) spotifyPreviewBuffers.set(item.previewUrl, buf);
         } catch (e) {}
       }
- 
+
       let ttsIndex = 0;
       timeline.forEach((item) => {
         if (item.type === 'audio') {
@@ -1626,7 +1626,7 @@ export default function App() {
           src.start(item.start, item.startSec, item.duration);
         }
       });
- 
+
       setCompileStatus('Rendering...');
       setCompileProgress(90);
       const rendered = await offlineCtx.startRendering();
@@ -1646,7 +1646,7 @@ export default function App() {
       setIsCompiling(false);
     }
   };
- 
+
   const makeMarkerTone = async (duration) => {
     const ctx = new OfflineAudioContext(2, Math.ceil(duration * 44100), 44100);
     const osc = ctx.createOscillator();
@@ -1659,7 +1659,7 @@ export default function App() {
     osc.start(0); osc.stop(0.25);
     return await ctx.startRendering();
   };
- 
+
   const downloadFinal = () => {
     if (!finalAudioUrl) return;
     const a = document.createElement('a');
@@ -1667,73 +1667,185 @@ export default function App() {
     a.download = `${examTitle.replace(/[^a-z0-9]+/gi, '_')}.wav`;
     a.click();
   };
- 
+
   const { totalDuration } = buildTimeline();
   const filledCount = questions.filter(q => q.source).length;
   const youtubeCount = questions.filter(q => q.source?.kind === 'youtube').length;
   const spotifyCount = questions.filter(q => q.source?.kind === 'spotify').length;
   const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
- 
+
   return (
     <div className="min-h-screen" style={{
-      background: 'linear-gradient(180deg, #f5f1e8 0%, #ede5d3 100%)',
-      fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
-      color: '#2a2520',
+      background: 'radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%)',
+      fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
+      color: '#f0f0f3',
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
-        body { margin: 0; }
-        .display-font { font-family: 'DM Sans', system-ui, sans-serif; letter-spacing: -0.01em; }
-        .mono-font { font-family: 'DM Mono', 'Menlo', monospace; }
-        .ink-shadow { box-shadow: 0 1px 0 rgba(42,37,32,0.04), 0 4px 16px rgba(42,37,32,0.06), 0 0 0 1px rgba(42,37,32,0.08); }
-        .accent { color: #8b2c1e; }
-        .accent-bg { background: #8b2c1e; }
-        .paper { background: #fdfbf5; }
-        .hairline { border: 1px solid rgba(42,37,32,0.12); }
-        input[type="number"], input[type="text"], input[type="password"], textarea, select {
-          background: #fdfbf5; border: 1px solid rgba(42,37,32,0.15);
-          padding: 6px 10px; font-family: inherit; color: #2a2520;
-          border-radius: 2px; transition: border-color 0.15s;
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+        body { margin: 0; background: #0b0b0f; }
+
+        .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
+        .mono-font { font-family: 'Geist Mono', 'Menlo', monospace; }
+
+        .accent { color: #818cf8; }
+        .accent-bg { background: #6366f1; color: #ffffff; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
+        .accent2 { color: #22d3ee; }
+
+        .paper {
+          background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
         }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: #8b2c1e; }
+        .hairline { border: 0.5px solid rgba(255,255,255,0.08); }
+        .ink-shadow {
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.04) inset,
+            0 4px 24px rgba(0,0,0,0.4),
+            0 0 0 0.5px rgba(255,255,255,0.08);
+        }
+
+        input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
+          background: rgba(255,255,255,0.03);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          padding: 7px 11px;
+          font-family: inherit;
+          color: #f0f0f3;
+          border-radius: 6px;
+          transition: all 0.15s;
+        }
+        input:focus, textarea:focus, select:focus {
+          outline: none;
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+        input::placeholder, textarea::placeholder { color: #5b5b65; }
+
         button { transition: all 0.15s; cursor: pointer; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .question-card { transition: all 0.2s; }
-        .question-card:hover { transform: translateY(-1px); }
-        .drop-zone.has-source { background: #f0e8d6; border-color: #8b2c1e; border-style: solid; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .question-card {
+          transition: all 0.2s;
+          background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+          border: 0.5px solid rgba(255,255,255,0.08);
+        }
+        .question-card:hover {
+          border-color: rgba(255,255,255,0.14);
+          transform: translateY(-1px);
+        }
+
+        .drop-zone {
+          background: rgba(255,255,255,0.02);
+          border: 1px dashed rgba(255,255,255,0.12);
+          transition: all 0.15s;
+        }
+        .drop-zone.has-source {
+          background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.02) 100%);
+          border: 0.5px solid rgba(99,102,241,0.25);
+          border-style: solid;
+        }
+
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .progress-bar {
-          background: linear-gradient(90deg, #8b2c1e 0%, #c44530 50%, #8b2c1e 100%);
-          background-size: 200% 100%; animation: shimmer 2s linear infinite;
+          background: linear-gradient(90deg, #6366f1 0%, #818cf8 50%, #6366f1 100%);
+          background-size: 200% 100%;
+          animation: shimmer 2s linear infinite;
         }
-        .tab { padding: 6px 12px; border: 1px solid rgba(42,37,32,0.15); background: transparent; }
-        .tab.active { background: #2a2520; color: #fdfbf5; border-color: #2a2520; }
+
+        .tab {
+          padding: 6px 12px;
+          border: 0.5px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.02);
+          color: #c5c5cc;
+          border-radius: 6px;
+        }
+        .tab.active {
+          background: #6366f1;
+          color: #ffffff;
+          border-color: #6366f1;
+          box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
+        }
+
+        .hover-glow:hover {
+          background: rgba(255,255,255,0.05) !important;
+        }
+
         .yt-hidden { position: fixed; bottom: -200px; right: 10px; opacity: 0.01; pointer-events: none; }
+
         details > summary { list-style: none; cursor: pointer; }
         details > summary::-webkit-details-marker { display: none; }
+
+        /* Range slider in dark theme */
+        input[type="range"] {
+          background: transparent;
+          padding: 0;
+          border: none;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+          background: rgba(255,255,255,0.08);
+          height: 4px;
+          border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          appearance: none;
+          width: 14px; height: 14px;
+          background: #818cf8;
+          border-radius: 50%;
+          margin-top: -5px;
+          cursor: pointer;
+        }
+        input[type="range"]::-moz-range-track {
+          background: rgba(255,255,255,0.08);
+          height: 4px;
+          border-radius: 2px;
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 14px; height: 14px;
+          background: #818cf8;
+          border-radius: 50%;
+          border: none;
+          cursor: pointer;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
       `}</style>
- 
+
       <div className="yt-hidden"><div ref={ytContainerRef}></div></div>
- 
-      <header className="hairline" style={{ borderBottom: '2px solid #2a2520', background: '#fdfbf5' }}>
-        <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
-          <div>
-            <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Listening Examination Audio Compiler</div>
-            <h1 className="display-font text-3xl font-bold leading-none">
-              Aural Composer
-            </h1>
+
+      <header className="hairline" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div style={{
+              width: '34px', height: '34px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3)',
+            }}>
+              <Music size={18} color="#ffffff" strokeWidth={2.2} />
+            </div>
+            <div>
+              <h1 className="display-font text-base font-semibold leading-none mb-1">Aural Composer</h1>
+              <div className="mono-font text-xs leading-none" style={{ color: '#5b5b65' }}>music exam audio · v1.0</div>
+            </div>
           </div>
           <button onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 px-3 py-2 hairline"
-            style={{ background: showSettings ? '#2a2520' : 'transparent', color: showSettings ? '#fdfbf5' : 'inherit' }}>
+            style={{
+              background: showSettings ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.02)',
+              borderColor: showSettings ? 'rgba(99,102,241,0.3)' : undefined,
+              color: showSettings ? '#a5b4fc' : '#c5c5cc',
+              borderRadius: '8px',
+            }}>
             <Settings size={14} />
-            <span className="mono-font text-xs uppercase tracking-wider">Voice & API</span>
+            <span className="text-xs font-medium">Voice & API</span>
           </button>
         </div>
       </header>
- 
+
       {showSettings && (
-        <div className="paper hairline" style={{ borderBottom: '1px solid rgba(42,37,32,0.12)' }}>
+        <div className="paper hairline" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="max-w-7xl mx-auto px-8 py-6">
             <div className="mb-4">
               <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2">TTS Provider</div>
@@ -1743,7 +1855,7 @@ export default function App() {
                 <button className={`tab mono-font text-xs uppercase tracking-wider ${ttsProvider === 'openai' ? 'active' : ''}`} onClick={() => setTtsProvider('openai')}>OpenAI</button>
               </div>
             </div>
- 
+
             {ttsProvider === 'browser' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -1762,7 +1874,7 @@ export default function App() {
                 </div>
               </div>
             )}
- 
+
             {ttsProvider === 'eleven' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1785,7 +1897,7 @@ export default function App() {
                 </div>
               </div>
             )}
- 
+
             {ttsProvider === 'openai' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1812,9 +1924,9 @@ export default function App() {
                 </div>
               </div>
             )}
- 
+
             {/* Spotify Connection */}
-            <div className="mt-6 pt-6" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)' }}>
+            <div className="mt-6 pt-6" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="mono-font text-xs uppercase tracking-wider opacity-60">Spotify Connection</div>
                 {spotifyUser && (
@@ -1834,7 +1946,7 @@ export default function App() {
                   {!spotifyToken ? (
                     <button onClick={spotifyConnect} disabled={!spotifyClientId}
                       className="px-4 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                      style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+                      style={{ color: '#16161a', borderRadius: '2px' }}>
                       Connect Spotify
                     </button>
                   ) : (
@@ -1852,14 +1964,14 @@ export default function App() {
                 </div>
                 <div className="md:col-span-2 text-xs opacity-60 leading-relaxed">
                   <strong>Setup (one-time):</strong> at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" className="underline">developer.spotify.com/dashboard</a>, create an app and add this exact Redirect URI:
-                  <code className="mono-font block mt-1 p-2" style={{ background: '#2a2520', color: '#fdfbf5', borderRadius: '2px', wordBreak: 'break-all' }}>
+                  <code className="mono-font block mt-1 p-2" style={{ background: '#f0f0f3', color: '#16161a', borderRadius: '2px', wordBreak: 'break-all' }}>
                     {typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}
                   </code>
                   Full-track playback requires Spotify Premium. Free accounts can still import playlists and use 30-second track previews.
                 </div>
               </div>
             </div>
- 
+
             <div className="mt-4">
               <button onClick={testVoice} disabled={ttsTestStatus === 'loading'}
                 className="flex items-center gap-2 px-3 py-2 hairline mono-font text-xs uppercase tracking-wider"
@@ -1871,15 +1983,15 @@ export default function App() {
           </div>
         </div>
       )}
- 
+
       <div className="flex max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
         {/* Sidebar */}
         <aside style={{
-          width: sidebarOpen ? '260px' : '48px',
+          width: sidebarOpen ? '240px' : '48px',
           flexShrink: 0,
-          borderRight: '1px solid rgba(42,37,32,0.1)',
+          borderRight: '0.5px solid rgba(255,255,255,0.06)',
           transition: 'width 0.2s ease',
-          background: '#fdfbf5',
+          background: 'rgba(255,255,255,0.015)',
         }}>
           <div className="sticky top-0 p-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1889,7 +2001,7 @@ export default function App() {
               <ListMusic size={14} />
               {sidebarOpen && <span>Saved Exams</span>}
             </button>
- 
+
             {sidebarOpen && (
               <>
                 <div className="flex gap-1 mt-3">
@@ -1901,12 +2013,12 @@ export default function App() {
                   </button>
                   <button onClick={saveCurrentExam}
                     className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
-                    style={{ color: '#fdfbf5', borderRadius: '3px' }}
+                    style={{ color: '#16161a', borderRadius: '3px' }}
                     title="Save current exam to your browser">
                     <Save size={11} /> Save
                   </button>
                 </div>
- 
+
                 <div className="mt-4 space-y-1 max-h-[60vh] overflow-y-auto">
                   {savedExams.length === 0 ? (
                     <div className="text-xs opacity-50 px-2 py-4 text-center" style={{ lineHeight: 1.5 }}>
@@ -1923,15 +2035,15 @@ export default function App() {
                     ))
                   )}
                 </div>
- 
-                <div className="mt-4 pt-4 text-xs opacity-50 px-2" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)', lineHeight: 1.5 }}>
+
+                <div className="mt-4 pt-4 text-xs opacity-50 px-2" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)', lineHeight: 1.5 }}>
                   Saved exams live in your browser only. To share an exam with someone else, use <strong>Save config</strong> below to download a file.
                 </div>
               </>
             )}
           </div>
         </aside>
- 
+
         {/* Main content */}
         <main className="flex-1 min-w-0 px-8 py-8">
         {/* PDF + Save/Load toolbar */}
@@ -1948,7 +2060,7 @@ export default function App() {
                 </div>
               )}
             </div>
- 
+
             {/* Save / Load */}
             <div>
               <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Or resume a saved exam</div>
@@ -1971,13 +2083,13 @@ export default function App() {
             </div>
           </div>
         </section>
- 
+
         <section className="mb-10">
           <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Examination</div>
           <input type="text" value={examTitle} onChange={e => setExamTitle(e.target.value)}
             className="display-font w-full bg-transparent border-none text-3xl font-semibold p-0"
-            style={{ borderBottom: '1px solid rgba(42,37,32,0.15)', paddingBottom: '8px' }} />
- 
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }} />
+
           <div className="flex flex-wrap gap-8 mt-6 mono-font text-xs uppercase tracking-wider">
             <div><div className="opacity-60 mb-1">Extracts</div><div className="text-lg accent font-semibold">{questions.length}</div></div>
             <div><div className="opacity-60 mb-1">Sources loaded</div><div className="text-lg font-semibold">{filledCount} / {questions.length}</div></div>
@@ -1997,11 +2109,11 @@ export default function App() {
             </div>
           </div>
         </section>
- 
+
         <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px' }}>
           <button onClick={() => setShowScript(!showScript)}
             className="w-full flex items-center justify-between p-5"
-            style={{ background: 'transparent', borderBottom: showScript ? '1px solid rgba(42,37,32,0.1)' : 'none' }}>
+            style={{ background: 'transparent', borderBottom: showScript ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
             <div className="text-left">
               <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Optional</div>
               <h2 className="display-font text-xl font-semibold">Announcement script</h2>
@@ -2010,7 +2122,7 @@ export default function App() {
               {showScript ? '− Hide' : '+ Edit wording'}
             </div>
           </button>
- 
+
           {showScript && (
             <div className="p-5 pt-2 space-y-4">
               <div>
@@ -2025,7 +2137,7 @@ export default function App() {
               </div>
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">
-                  Between plays template — placeholders: <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{ord}'}</code> (second/third…) · <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{n}'}</code> (2/3…) · <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{final}'}</code> (auto-adds " and final" on the last play)
+                  Between plays template — placeholders: <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{ord}'}</code> (second/third…) · <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{n}'}</code> (2/3…) · <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{final}'}</code> (auto-adds " and final" on the last play)
                 </label>
                 <input type="text" value={script.betweenPlays} onChange={e => setScript({ ...script, betweenPlays: e.target.value })}
                   className="w-full text-sm" />
@@ -2048,7 +2160,7 @@ export default function App() {
             </div>
           )}
         </section>
- 
+
         {/* Spotify import */}
         {spotifyToken && (
           <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px', padding: '20px' }}>
@@ -2063,7 +2175,7 @@ export default function App() {
                 <div className="mono-font text-xs opacity-60">Loaded: <strong>{spotifyPlaylistName}</strong> · {spotifyImportedTracks.length} track{spotifyImportedTracks.length === 1 ? '' : 's'}</div>
               )}
             </div>
- 
+
             <div className="flex gap-2 flex-wrap items-end">
               <div className="flex-1 min-w-[300px]">
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Playlist or track URL / URI</label>
@@ -2072,7 +2184,7 @@ export default function App() {
               </div>
               <button onClick={importSpotifyPlaylist} disabled={spotifyLoading || !spotifyPlaylistUrl}
                 className="flex items-center gap-2 px-4 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+                style={{ color: '#16161a', borderRadius: '2px' }}>
                 {spotifyLoading ? <Loader2 size={12} className="animate-spin" /> : <ListMusic size={12} />}
                 Import playlist
               </button>
@@ -2089,9 +2201,9 @@ export default function App() {
                 </button>
               )}
             </div>
- 
+
             {spotifyImportedTracks.length > 0 && (
-              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto pr-2" style={{ borderTop: '1px solid rgba(42,37,32,0.1)', paddingTop: '12px' }}>
+              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto pr-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '12px' }}>
                 {spotifyImportedTracks.map((t, i) => (
                   <SpotifyTrackRow key={t.id} track={t} index={i + 1}
                     questions={questions}
@@ -2101,13 +2213,13 @@ export default function App() {
             )}
           </section>
         )}
- 
+
         <section>
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="display-font text-xl font-semibold">Extracts</h2>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60">File · YouTube · Spotify</div>
           </div>
- 
+
           <div className="space-y-3">
             {questions.map((q, idx) => (
               <QuestionCard key={q.id} q={q} index={idx} totalQuestions={questions.length}
@@ -2123,7 +2235,7 @@ export default function App() {
                 onReorder={moveQuestionTo}
                 disabled={isCompiling || livePlaying} />
             ))}
- 
+
             <button onClick={() => addQuestion()} disabled={isCompiling || livePlaying}
               className="w-full flex items-center justify-center gap-2 py-4 hairline mono-font text-xs uppercase tracking-wider opacity-60 hover:opacity-100"
               style={{ background: 'transparent', borderStyle: 'dashed', borderRadius: '3px' }}>
@@ -2131,7 +2243,7 @@ export default function App() {
             </button>
           </div>
         </section>
- 
+
         <section className="mt-12 paper ink-shadow" style={{ borderRadius: '4px', padding: '32px' }}>
           <div className="flex items-baseline justify-between mb-6 flex-wrap gap-4">
             <div>
@@ -2143,18 +2255,18 @@ export default function App() {
               Skip reading time (testing)
             </label>
           </div>
- 
+
           {isCompiling && (
             <div className="mb-6">
               <div className="mono-font text-xs uppercase tracking-wider mb-2 flex justify-between">
                 <span>{compileStatus}</span><span>{compileProgress.toFixed(0)}%</span>
               </div>
-              <div className="h-1 hairline rounded overflow-hidden" style={{ background: 'rgba(42,37,32,0.08)' }}>
+              <div className="h-1 hairline rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                 <div className="progress-bar h-full transition-all duration-300" style={{ width: `${compileProgress}%` }} />
               </div>
             </div>
           )}
- 
+
           <div className="flex flex-wrap gap-3">
             {!livePlaying ? (
               <button onClick={playLiveFull} disabled={isCompiling || filledCount === 0}
@@ -2166,45 +2278,45 @@ export default function App() {
               <div className="flex items-stretch hairline" style={{ borderRadius: '2px', overflow: 'hidden' }}>
                 <button onClick={skipToPrevExtract}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Jump to previous extract">
                   <SkipBack size={14} />
                 </button>
                 <button onClick={livePaused ? resumeLive : pauseLive}
                   className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider font-semibold"
-                  style={{ background: livePaused ? '#8b2c1e' : '#fdfbf5', color: livePaused ? '#fdfbf5' : '#2a2520', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  style={{ background: livePaused ? '#6366f1' : '#16161a', color: livePaused ? '#16161a' : '#f0f0f3', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title={livePaused ? 'Resume' : 'Pause'}>
                   {livePaused ? <Play size={14} /> : <Pause size={14} />}
                   {livePaused ? 'Resume' : 'Pause'}
                 </button>
                 <button onClick={skipCurrentItem}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Skip current segment (announcement, silence, or audio)">
                   <ChevronsRight size={14} />
                 </button>
                 <button onClick={skipToNextExtract}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Jump to next extract">
                   <SkipForward size={14} />
                 </button>
                 <button onClick={playLiveFull}
                   className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#2a2520', color: '#fdfbf5' }}
+                  style={{ background: '#f0f0f3', color: '#16161a' }}
                   title="Stop preview">
                   <Square size={12} /> Stop
                 </button>
               </div>
             )}
- 
+
             <button onClick={compileAudio} disabled={isCompiling || filledCount === 0 || livePlaying}
               className="flex items-center gap-2 px-5 py-3 mono-font text-sm uppercase tracking-wider font-semibold accent-bg"
-              style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+              style={{ color: '#16161a', borderRadius: '2px' }}>
               <Download size={16} />
               Compile WAV file
             </button>
- 
+
             {finalAudioUrl && (
               <button onClick={downloadFinal}
                 className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
@@ -2214,9 +2326,9 @@ export default function App() {
               </button>
             )}
           </div>
- 
+
           {livePlaying && (
-            <div className="mt-4 paper hairline p-3" style={{ borderRadius: '2px', background: '#fdfbf5' }}>
+            <div className="mt-4 paper hairline p-3" style={{ borderRadius: '2px', background: '#16161a' }}>
               <div className="flex items-center gap-3 mb-2">
                 <div className="mono-font text-xs uppercase tracking-wider opacity-60" style={{ minWidth: '60px' }}>
                   Now: {livePaused && <span className="accent">PAUSED</span>}
@@ -2226,18 +2338,18 @@ export default function App() {
                   {liveItemIndex + 1} / {liveTotalItems}
                 </div>
               </div>
-              <div className="h-1" style={{ background: 'rgba(42,37,32,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+              <div className="h-1" style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '1px', overflow: 'hidden' }}>
                 <div style={{
                   width: `${liveTotalItems > 0 ? ((liveItemIndex + 1) / liveTotalItems) * 100 : 0}%`,
                   height: '100%',
-                  background: '#8b2c1e',
+                  background: '#6366f1',
                   transition: 'width 0.3s ease',
                 }} />
               </div>
             </div>
           )}
- 
-          <div className="mt-6 paper hairline p-4" style={{ borderRadius: '2px', background: '#f0e8d6' }}>
+
+          <div className="mt-6 paper hairline p-4" style={{ borderRadius: '2px', background: 'rgba(99,102,241,0.08)' }}>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2 flex items-center gap-1.5">
               <AlertCircle size={12} /> Source compatibility with WAV export
             </div>
@@ -2250,8 +2362,8 @@ export default function App() {
             </ul>
           </div>
         </section>
- 
-        <footer className="mt-16 pt-8 text-center mono-font text-xs uppercase tracking-widest opacity-40" style={{ borderTop: '1px solid rgba(42,37,32,0.1)' }}>
+
+        <footer className="mt-16 pt-8 text-center mono-font text-xs uppercase tracking-widest opacity-40" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           Aural Composer · v1.0
         </footer>
         </main>
@@ -2259,7 +2371,7 @@ export default function App() {
     </div>
   );
 }
- 
+
 function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, onSpotifyTrackAdd, spotifyConnected, onClear, onUpdate, onPreview, isPreviewing, onMoveUp, onMoveDown, onDelete, onAddBelow, onReorder, disabled }) {
   const [dragOver, setDragOver] = useState(false);
   const [mode, setMode] = useState('file');
@@ -2270,18 +2382,18 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
   const [spStart, setSpStart] = useState('');
   const [spEnd, setSpEnd] = useState('');
   const fileInputRef = useRef(null);
- 
+
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('audio/')) onFileUpload(q.id, file);
   };
- 
+
   const ytdlpCommand = q.source?.kind === 'youtube'
     ? `yt-dlp -x --audio-format mp3 --download-sections "*${q.source.startStr || formatTime(q.source.start)}-${q.source.endStr || formatTime(q.source.end)}" "${q.source.url}" -o "extract_${q.id}.%(ext)s"`
     : '';
- 
+
   return (
     <div className="question-card paper ink-shadow"
       style={{ borderRadius: '3px' }}
@@ -2306,7 +2418,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
         }
       }}>
       <div className="flex items-stretch">
-        <div className="flex flex-col items-center justify-center px-4 py-5 gap-2" style={{ borderRight: '1px solid rgba(42,37,32,0.1)', minWidth: '80px' }}>
+        <div className="flex flex-col items-center justify-center px-4 py-5 gap-2" style={{ borderRight: '1px solid rgba(255,255,255,0.07)', minWidth: '80px' }}>
           <div className="opacity-30 cursor-grab" title="Drag to reorder">
             <GripVertical size={14} />
           </div>
@@ -2328,17 +2440,17 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
             </button>
           </div>
         </div>
- 
+
         <div className="flex-1 p-5">
           <div className="flex items-start justify-between gap-2 mb-3">
             <input type="text" value={q.label} onChange={e => onUpdate(q.id, 'label', e.target.value)} disabled={disabled}
               className="display-font text-xl font-semibold bg-transparent border-none p-0 w-full flex-1"
               style={{ borderBottom: '1px dashed transparent' }}
-              onFocus={e => e.target.style.borderBottomColor = 'rgba(42,37,32,0.2)'}
+              onFocus={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.12)'}
               onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
             <button onClick={() => onPreview(q)} disabled={!q.source || disabled}
               className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-              style={{ background: isPreviewing ? '#8b2c1e' : 'transparent', color: isPreviewing ? '#fdfbf5' : 'inherit' }}
+              style={{ background: isPreviewing ? '#6366f1' : 'transparent', color: isPreviewing ? '#16161a' : 'inherit' }}
               title="Preview full extract (intro + all plays + between announcements)">
               {isPreviewing ? <Pause size={12} /> : <Play size={12} />}
               Preview
@@ -2349,13 +2461,13 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
               <Trash2 size={14} />
             </button>
           </div>
- 
+
           <div className="mb-4">
             <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Announcement</label>
             <textarea value={q.intro} onChange={e => onUpdate(q.id, 'intro', e.target.value)} disabled={disabled} rows={2}
               className="w-full text-sm" style={{ resize: 'vertical' }} />
           </div>
- 
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="mono-font text-xs uppercase tracking-wider opacity-50 flex items-center gap-1.5 mb-1"><Repeat size={11} /> Plays</label>
@@ -2376,7 +2488,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                 disabled={disabled} className="w-full text-sm" />
             </div>
           </div>
- 
+
           {q.source ? (
             <div className="drop-zone hairline has-source p-4" style={{ borderRadius: '2px' }}>
               <div className="flex items-center justify-between">
@@ -2434,10 +2546,10 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                 </div>
               </div>
               {q.source.kind === 'youtube' && (
-                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)' }}>
+                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
                   <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Convert to local file with yt-dlp</summary>
                   <div className="mt-2 flex items-center gap-2">
-                    <code className="mono-font text-xs p-2 flex-1 overflow-x-auto" style={{ background: '#2a2520', color: '#fdfbf5', borderRadius: '2px' }}>{ytdlpCommand}</code>
+                    <code className="mono-font text-xs p-2 flex-1 overflow-x-auto" style={{ background: '#f0f0f3', color: '#16161a', borderRadius: '2px' }}>{ytdlpCommand}</code>
                     <button onClick={() => navigator.clipboard.writeText(ytdlpCommand)} className="p-2 hairline" style={{ background: 'transparent' }} title="Copy">
                       <Copy size={12} />
                     </button>
@@ -2446,7 +2558,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                 </details>
               )}
               {q.source.kind === 'file' && q.source.buffer && (
-                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
+                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
                   <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Trim audio</summary>
                   <WaveformTrimmer source={q.source} disabled={disabled}
                     onUpdate={(s, e) => onUpdate(q.id, 'source', { ...q.source, trimStart: s, trimEnd: e })} />
@@ -2466,10 +2578,10 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                   <Music size={11} className="inline mr-1" /> Spotify
                 </button>
               </div>
- 
+
               {mode === 'file' && (
                 <div className="drop-zone hairline p-4 text-center"
-                  style={{ borderStyle: 'dashed', borderRadius: '2px', background: dragOver ? '#f0e8d6' : 'transparent' }}
+                  style={{ borderStyle: 'dashed', borderRadius: '2px', background: dragOver ? 'rgba(99,102,241,0.08)' : 'transparent' }}
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}>
@@ -2481,7 +2593,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                   <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={e => onFileUpload(q.id, e.target.files[0])} />
                 </div>
               )}
- 
+
               {mode === 'youtube' && (
                 <div className="hairline p-4" style={{ borderStyle: 'dashed', borderRadius: '2px' }}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2503,7 +2615,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                         setYtUrl(''); setYtStart(''); setYtEnd('');
                       }} disabled={disabled || !ytUrl}
                         className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                        style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+                        style={{ color: '#16161a', borderRadius: '2px' }}>
                         Add clip
                       </button>
                     </div>
@@ -2511,7 +2623,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                   <div className="text-xs opacity-50 mt-2">Tip: accepts <code className="mono-font">1:23</code>, <code className="mono-font">83</code>, or <code className="mono-font">1m23s</code> formats.</div>
                 </div>
               )}
- 
+
               {mode === 'spotify' && (
                 <div className="hairline p-4" style={{ borderStyle: 'dashed', borderRadius: '2px' }}>
                   {!spotifyConnected ? (
@@ -2538,7 +2650,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                           setSpUrl(''); setSpStart(''); setSpEnd('');
                         }} disabled={disabled || !spUrl}
                           className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                          style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+                          style={{ color: '#16161a', borderRadius: '2px' }}>
                           Add clip
                         </button>
                       </div>
@@ -2553,7 +2665,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
     </div>
   );
 }
- 
+
 function audioBufferToWav(buffer) {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
@@ -2564,7 +2676,7 @@ function audioBufferToWav(buffer) {
   const dataSize = numSamples * blockAlign;
   const arrayBuffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(arrayBuffer);
- 
+
   writeString(view, 0, 'RIFF');
   view.setUint32(4, 36 + dataSize, true);
   writeString(view, 8, 'WAVE');
@@ -2578,7 +2690,7 @@ function audioBufferToWav(buffer) {
   view.setUint16(34, bitDepth, true);
   writeString(view, 36, 'data');
   view.setUint32(40, dataSize, true);
- 
+
   const channels = [];
   for (let i = 0; i < numChannels; i++) channels.push(buffer.getChannelData(i));
   let offset = 44;
@@ -2592,22 +2704,22 @@ function audioBufferToWav(buffer) {
   }
   return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
- 
+
 function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
 }
- 
+
 // ===== Saved exam row in sidebar =====
 function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const date = new Date(entry.savedAt);
   const dateStr = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const extractCount = entry.config?.questions?.length || 0;
- 
+
   return (
     <div className="group relative hairline" style={{ borderRadius: '3px', background: 'transparent' }}>
       <button onClick={onLoad}
-        className="w-full text-left p-2 hover:bg-stone-100"
+        className="w-full text-left p-2 hover:hover-glow"
         style={{ background: 'transparent', borderRadius: '3px' }}
         title={`Load "${entry.name}"`}>
         <div className="text-sm font-medium truncate" style={{ paddingRight: '20px' }}>
@@ -2623,7 +2735,7 @@ function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
         title="Options">
         <ChevronDown size={12} />
       </button>
- 
+
       {menuOpen && (
         <>
           <div onClick={() => setMenuOpen(false)}
@@ -2631,18 +2743,18 @@ function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
           <div className="absolute right-1 top-7 paper ink-shadow"
             style={{ borderRadius: '3px', minWidth: '140px', zIndex: 11 }}>
             <button onClick={() => { setMenuOpen(false); onUpdate(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
+              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
               style={{ background: 'transparent' }}>
               <Save size={11} /> Update with current
             </button>
             <button onClick={() => { setMenuOpen(false); onRename(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
+              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
               style={{ background: 'transparent' }}>
               <FileText size={11} /> Rename
             </button>
             <button onClick={() => { setMenuOpen(false); onDelete(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
-              style={{ background: 'transparent', color: '#8b2c1e' }}>
+              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
+              style={{ background: 'transparent', color: '#6366f1' }}>
               <Trash2 size={11} /> Delete
             </button>
           </div>
@@ -2651,7 +2763,7 @@ function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
     </div>
   );
 }
- 
+
 // ===== Waveform trimmer =====
 function WaveformTrimmer({ source, onUpdate, disabled }) {
   const canvasRef = useRef(null);
@@ -2659,7 +2771,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
   const [containerWidth, setContainerWidth] = useState(600);
   const buffer = source.buffer;
   const totalDur = buffer.duration;
- 
+
   const [trimStart, setTrimStart] = useState(source.trimStart || 0);
   const [trimEnd, setTrimEnd] = useState(source.trimEnd != null ? source.trimEnd : totalDur);
   const [dragging, setDragging] = useState(null); // 'start' | 'end' | null
@@ -2668,7 +2780,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
   const playSourceRef = useRef(null);
   const playStartRef = useRef(0);
   const playRafRef = useRef(null);
- 
+
   // Width tracking
   useEffect(() => {
     if (!containerRef.current) return;
@@ -2678,7 +2790,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
- 
+
   // Draw waveform
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2693,16 +2805,16 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
- 
+
     // Compute peaks
     const data = buffer.getChannelData(0);
     const samplesPerPixel = Math.max(1, Math.floor(data.length / W));
     const mid = H / 2;
- 
+
     // Draw inactive (outside trim) in muted, active (inside trim) in accent
     const startX = (trimStart / totalDur) * W;
     const endX = (trimEnd / totalDur) * W;
- 
+
     for (let x = 0; x < W; x++) {
       let min = 0, max = 0;
       const offset = x * samplesPerPixel;
@@ -2714,24 +2826,24 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
       const yMin = mid + min * mid * 0.85;
       const yMax = mid + max * mid * 0.85;
       const inside = x >= startX && x <= endX;
-      ctx.fillStyle = inside ? '#8b2c1e' : 'rgba(42,37,32,0.25)';
+      ctx.fillStyle = inside ? '#6366f1' : 'rgba(255,255,255,0.15)';
       ctx.fillRect(x, yMin, 1, Math.max(1, yMax - yMin));
     }
- 
+
     // Center line
-    ctx.fillStyle = 'rgba(42,37,32,0.1)';
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
     ctx.fillRect(0, mid, W, 1);
   }, [containerWidth, buffer, trimStart, trimEnd, totalDur]);
- 
+
   // Mouse / touch handlers
   const pixelToTime = (px) => Math.max(0, Math.min(totalDur, (px / containerWidth) * totalDur));
- 
+
   const onPointerDown = (e, which) => {
     if (disabled) return;
     e.preventDefault();
     setDragging(which);
   };
- 
+
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e) => {
@@ -2759,7 +2871,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
       window.removeEventListener('touchend', onUp);
     };
   }, [dragging, trimEnd, trimStart, totalDur, containerWidth]);
- 
+
   // Commit values to parent when drag ends
   useEffect(() => {
     if (dragging) return;
@@ -2767,13 +2879,13 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
       onUpdate(trimStart, trimEnd);
     }
   }, [dragging, trimStart, trimEnd]);
- 
+
   // Reset trim if source changes
   useEffect(() => {
     setTrimStart(source.trimStart || 0);
     setTrimEnd(source.trimEnd != null ? source.trimEnd : totalDur);
   }, [source.name, totalDur]);
- 
+
   // Playback of trimmed selection
   const stopPlayback = () => {
     if (playSourceRef.current) {
@@ -2787,7 +2899,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
     setIsPlaying(false);
     setPlayhead(null);
   };
- 
+
   const startPlayback = (fromTime = null) => {
     stopPlayback();
     const startAt = fromTime != null ? fromTime : trimStart;
@@ -2815,25 +2927,25 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
     playRafRef.current = requestAnimationFrame(tick);
     src.onended = () => stopPlayback();
   };
- 
+
   useEffect(() => () => stopPlayback(), []);
- 
+
   const playheadX = playhead != null ? (playhead / totalDur) * containerWidth : null;
   const startX = (trimStart / totalDur) * containerWidth;
   const endX = (trimEnd / totalDur) * containerWidth;
- 
+
   return (
-    <div className="mt-3 p-3 hairline" style={{ borderRadius: '2px', background: 'rgba(255,255,255,0.5)' }}>
+    <div className="mt-3 p-3 hairline" style={{ borderRadius: '2px', background: 'rgba(0,0,0,0.25)' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="mono-font text-xs uppercase tracking-wider opacity-60">Trim</div>
         <div className="mono-font text-xs opacity-70">
           {formatTime(trimStart)} → {formatTime(trimEnd)} · clip {formatTime(trimEnd - trimStart)}
         </div>
       </div>
- 
+
       <div ref={containerRef} style={{ position: 'relative', height: '80px', userSelect: 'none', cursor: 'crosshair' }}>
         <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '80px' }} />
- 
+
         {/* Start handle */}
         <div
           onMouseDown={(e) => onPointerDown(e, 'start')}
@@ -2843,13 +2955,13 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             width: '12px', height: '80px', cursor: 'ew-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-          <div style={{ width: '3px', height: '100%', background: '#8b2c1e' }} />
+          <div style={{ width: '3px', height: '100%', background: '#6366f1' }} />
           <div style={{
             position: 'absolute', top: '-2px', width: '12px', height: '12px',
-            background: '#8b2c1e', borderRadius: '2px',
+            background: '#6366f1', borderRadius: '2px',
           }} />
         </div>
- 
+
         {/* End handle */}
         <div
           onMouseDown={(e) => onPointerDown(e, 'end')}
@@ -2859,34 +2971,34 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             width: '12px', height: '80px', cursor: 'ew-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-          <div style={{ width: '3px', height: '100%', background: '#8b2c1e' }} />
+          <div style={{ width: '3px', height: '100%', background: '#6366f1' }} />
           <div style={{
             position: 'absolute', bottom: '-2px', width: '12px', height: '12px',
-            background: '#8b2c1e', borderRadius: '2px',
+            background: '#6366f1', borderRadius: '2px',
           }} />
         </div>
- 
+
         {/* Playhead */}
         {playheadX != null && (
           <div style={{
             position: 'absolute', top: 0, left: `${playheadX}px`,
-            width: '2px', height: '80px', background: '#2a2520',
+            width: '2px', height: '80px', background: '#f0f0f3',
             pointerEvents: 'none', boxShadow: '0 0 4px rgba(0,0,0,0.3)',
           }} />
         )}
       </div>
- 
+
       {/* Controls */}
       <div className="flex items-center gap-2 mt-3">
         <button
           onClick={() => isPlaying ? stopPlayback() : startPlayback()}
           disabled={disabled}
           className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-          style={{ background: isPlaying ? '#8b2c1e' : 'transparent', color: isPlaying ? '#fdfbf5' : 'inherit' }}>
+          style={{ background: isPlaying ? '#6366f1' : 'transparent', color: isPlaying ? '#16161a' : 'inherit' }}>
           {isPlaying ? <Pause size={12} /> : <Play size={12} />}
           {isPlaying ? 'Stop' : 'Play selection'}
         </button>
- 
+
         <div className="flex items-center gap-1.5">
           <label className="mono-font text-xs uppercase tracking-wider opacity-60">Start</label>
           <input type="text" value={formatTime(trimStart)}
@@ -2898,7 +3010,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             disabled={disabled}
             className="w-16 text-xs mono-font" style={{ padding: '4px 6px' }} />
         </div>
- 
+
         <div className="flex items-center gap-1.5">
           <label className="mono-font text-xs uppercase tracking-wider opacity-60">End</label>
           <input type="text" value={formatTime(trimEnd)}
@@ -2910,7 +3022,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             disabled={disabled}
             className="w-16 text-xs mono-font" style={{ padding: '4px 6px' }} />
         </div>
- 
+
         <button
           onClick={() => { setTrimStart(0); setTrimEnd(totalDur); }}
           disabled={disabled || (trimStart === 0 && trimEnd === totalDur)}
@@ -2918,26 +3030,26 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
           style={{ background: 'transparent' }}>
           Reset
         </button>
- 
+
         <div className="flex-1" />
         <div className="mono-font text-xs opacity-50">full: {formatTime(totalDur)}</div>
       </div>
     </div>
   );
 }
- 
+
 // ===== PDF drop zone =====
 function PdfDropZone({ onFile, parsing, disabled }) {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
- 
+
   return (
     <div
       className="hairline p-4 text-center"
       style={{
         borderStyle: 'dashed',
         borderRadius: '2px',
-        background: dragOver ? '#f0e8d6' : 'transparent',
+        background: dragOver ? 'rgba(99,102,241,0.08)' : 'transparent',
         opacity: disabled ? 0.5 : 1,
       }}
       onDragOver={e => { e.preventDefault(); if (!disabled) setDragOver(true); }}
@@ -2960,7 +3072,7 @@ function PdfDropZone({ onFile, parsing, disabled }) {
     </div>
   );
 }
- 
+
 // ===== Spotify track row (in the playlist import staging area) =====
 function SpotifyTrackRow({ track, index, questions, onAssign }) {
   const [start, setStart] = useState('0:00');
@@ -2968,9 +3080,9 @@ function SpotifyTrackRow({ track, index, questions, onAssign }) {
   const [selectedQ, setSelectedQ] = useState('');
   const trackDurSec = track.durationMs / 1000;
   const hasPreview = !!track.previewUrl;
- 
+
   return (
-    <div className="flex items-center gap-3 py-2 px-3 hairline" style={{ borderRadius: '2px', background: '#fdfbf5' }}>
+    <div className="flex items-center gap-3 py-2 px-3 hairline" style={{ borderRadius: '2px', background: '#16161a' }}>
       <div className="mono-font text-xs opacity-40 w-6 text-right">{index}</div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold truncate">{track.name}</div>
@@ -2995,7 +3107,7 @@ function SpotifyTrackRow({ track, index, questions, onAssign }) {
         onAssign(parseInt(selectedQ), track, start, end || null);
       }} disabled={!selectedQ}
         className="px-2 py-1 mono-font text-xs uppercase tracking-wider accent-bg"
-        style={{ color: '#fdfbf5', borderRadius: '2px' }}>
+        style={{ color: '#16161a', borderRadius: '2px' }}>
         Assign
       </button>
       {track.externalUrl && (

@@ -21,7 +21,6 @@ const DEFAULT_SCRIPT = {
   ending: 'This is the end of the listening section of the examination.',
 };
 
-
 const ORDINAL_WORDS = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
  
 let pdfjsPromise = null;
@@ -613,31 +612,44 @@ export default function App() {
     if (!playlistId) { alert('Could not parse Spotify playlist URL/ID.'); return; }
     setSpotifyLoading(true);
     try {
-      const meta = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description,tracks.total`);
+      const meta = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description`);
       setSpotifyPlaylistName(meta.name);
  
       let allTracks = [];
-      let next = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id,name,artists(name),duration_ms,preview_url,uri,external_urls)),next&limit=100`;
+      // Spotify renamed /tracks → /items in Feb 2026. Response field renames: items[].track → items[].item
+      // We support both shapes for safety.
+      let next = `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
       while (next) {
         const page = await spotifyFetch(next);
-        for (const item of page.items) {
-          if (item.track && item.track.id) {
+        const rows = page.items || [];
+        for (const row of rows) {
+          // New format: row.item. Old format: row.track. Some responses include both.
+          const t = row.item || row.track;
+          if (t && t.id) {
             allTracks.push({
-              id: item.track.id,
-              name: item.track.name,
-              artists: item.track.artists.map(a => a.name).join(', '),
-              durationMs: item.track.duration_ms,
-              previewUrl: item.track.preview_url,
-              uri: item.track.uri,
-              externalUrl: item.track.external_urls?.spotify,
+              id: t.id,
+              name: t.name,
+              artists: (t.artists || []).map(a => a.name).join(', '),
+              durationMs: t.duration_ms,
+              previewUrl: t.preview_url,
+              uri: t.uri,
+              externalUrl: t.external_urls?.spotify,
             });
           }
         }
         next = page.next;
       }
+      if (allTracks.length === 0) {
+        alert('Playlist loaded but contained no playable tracks (or Spotify returned an unexpected response format).');
+      }
       setSpotifyImportedTracks(allTracks);
     } catch (err) {
-      alert(`Failed to import playlist: ${err.message}`);
+      // Surface 403 with a friendlier explanation
+      let msg = err.message;
+      if (msg.includes('403')) {
+        msg = 'Spotify refused this request (403).\n\nThis often means your app needs Extended Quota Mode for playlist access, or the playlist isn\'t accessible to your account. See the dev console for details.';
+      }
+      alert(`Failed to import playlist: ${msg}`);
     } finally {
       setSpotifyLoading(false);
     }

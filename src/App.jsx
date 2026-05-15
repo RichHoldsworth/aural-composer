@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award } from 'lucide-react';
+import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award, SkipForward, SkipBack, ChevronsRight, Square } from 'lucide-react';
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
@@ -10,14 +10,14 @@ const DEFAULT_QUESTIONS = [
   { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. You will hear this extract three times.', source: null },
   { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
   { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. You will hear this extract three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. You will hear this extract three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. You will hear this extract three times. This is the final extract.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Trinity School Examinations, Music Listening and Appraising, This sound file contains the extracts you will need to answer the questions. ',
+  opening: 'Trinity School Examinations. This is the Music Listening and Appraising examination. This sound file contains the extracts you will need to answer the questions',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
-  betweenPlays: 'Here is the extract for the {ord}{final} time.',
+  betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
   ending: 'This is the end of the listening section of the examination.',
 };
 
@@ -272,8 +272,8 @@ function loadYouTubeAPI() {
 
 export default function App() {
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(300);
-  const [examTitle, setExamTitle] = useState('Enter your Exam name here');
+  const [readingTime, setReadingTime] = useState(0);
+  const [examTitle, setExamTitle] = useState('Enter you Exam Title here');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1125,49 +1125,240 @@ export default function App() {
     });
   };
 
+  // ===== Live playback state =====
+  const [livePaused, setLivePaused] = useState(false);
+  const [liveItemIndex, setLiveItemIndex] = useState(0);
+  const [liveTotalItems, setLiveTotalItems] = useState(0);
+  const [liveCurrentLabel, setLiveCurrentLabel] = useState('');
+  const livePlaybackRef = useRef({
+    timeline: [],
+    cursor: 0,
+    abortCurrent: null, // function: aborts current item, takes 'skip' | 'pause'
+    paused: false,
+    skipRequest: null, // null | 'next-extract' | 'prev-extract' | 'skip-item'
+    stopped: false,
+    runId: 0,
+  });
+
+  const describeItem = (item, timeline, idx) => {
+    if (item.type === 'tts') return 'Announcement';
+    if (item.type === 'silence') return item.label || 'Silence';
+    if (item.type === 'audio' || item.type === 'youtube' || item.type === 'spotify') {
+      const q = questions.find(x => x.id === item.questionId);
+      const label = q?.label || `Extract ${item.questionId}`;
+      return `${label} · play ${item.playNumber} of ${q?.plays || '?'}`;
+    }
+    return 'Playing...';
+  };
+
+  const findExtractBoundary = (timeline, currentIdx, direction) => {
+    // Find next/prev item where type is audio/youtube/spotify with playNumber === 1 (start of an extract)
+    if (direction === 'next') {
+      for (let i = currentIdx + 1; i < timeline.length; i++) {
+        const t = timeline[i];
+        if ((t.type === 'audio' || t.type === 'youtube' || t.type === 'spotify') && t.playNumber === 1) return i;
+      }
+      return timeline.length; // end
+    } else {
+      // Previous: find the most recent extract start at or before currentIdx, then go one more back
+      let lastStart = -1;
+      for (let i = 0; i < currentIdx; i++) {
+        const t = timeline[i];
+        if ((t.type === 'audio' || t.type === 'youtube' || t.type === 'spotify') && t.playNumber === 1) {
+          lastStart = i;
+        }
+      }
+      // If we're currently AT the start of an extract, go back to the previous one's start
+      // To do this we need the start before lastStart
+      let prevStart = -1;
+      for (let i = 0; i < lastStart; i++) {
+        const t = timeline[i];
+        if ((t.type === 'audio' || t.type === 'youtube' || t.type === 'spotify') && t.playNumber === 1) {
+          prevStart = i;
+        }
+      }
+      if (currentIdx > lastStart && lastStart >= 0) return lastStart;
+      if (prevStart >= 0) return prevStart;
+      return 0; // jump to start of timeline
+    }
+  };
+
   const playLiveFull = async () => {
     if (livePlaying) {
-      liveStopRef.current.stopped = true;
+      // Stop entirely
+      livePlaybackRef.current.stopped = true;
+      livePlaybackRef.current.abortCurrent?.('stop');
       stopAll();
+      setLivePaused(false);
       return;
     }
+
     const { timeline } = buildTimeline();
-    liveStopRef.current = { stopped: false };
+    const myRunId = (livePlaybackRef.current.runId || 0) + 1;
+    livePlaybackRef.current = {
+      timeline,
+      cursor: 0,
+      abortCurrent: null,
+      paused: false,
+      skipRequest: null,
+      stopped: false,
+      runId: myRunId,
+    };
     setLivePlaying(true);
+    setLivePaused(false);
+    setLiveTotalItems(timeline.length);
 
     const ctx = getAudioContext();
     if (ctx.state === 'suspended') await ctx.resume();
-    const startedAt = performance.now() / 1000;
 
-    for (const item of timeline) {
-      if (liveStopRef.current.stopped) break;
-      const targetTime = startedAt + item.start;
-      const now = performance.now() / 1000;
-      const wait = (targetTime - now) * 1000;
-      if (wait > 0) await new Promise(r => setTimeout(r, wait));
-      if (liveStopRef.current.stopped) break;
+    while (livePlaybackRef.current.cursor < timeline.length) {
+      if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
 
-      if (item.type === 'tts') {
-        await speakLive(item.text);
-      } else if (item.type === 'audio') {
-        await new Promise((resolve) => {
-          const src = ctx.createBufferSource();
-          src.buffer = item.buffer;
-          src.connect(ctx.destination);
-          if (item.bufferOffset != null) {
-            src.start(0, item.bufferOffset, item.playDuration);
-          } else {
-            src.start();
-          }
-          src.onended = resolve;
-        });
-      } else if (item.type === 'youtube') {
-        await playYouTubeSegment(item.videoId, item.startSec, item.endSec);
-      } else if (item.type === 'spotify') {
-        await playSpotifySegment(item.uri, item.startSec, item.endSec);
+      // Wait while paused
+      while (livePlaybackRef.current.paused) {
+        if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      if (livePlaybackRef.current.stopped || livePlaybackRef.current.runId !== myRunId) break;
+
+      // Handle skip requests
+      if (livePlaybackRef.current.skipRequest === 'next-extract') {
+        livePlaybackRef.current.cursor = findExtractBoundary(timeline, livePlaybackRef.current.cursor, 'next');
+        livePlaybackRef.current.skipRequest = null;
+        continue;
+      } else if (livePlaybackRef.current.skipRequest === 'prev-extract') {
+        livePlaybackRef.current.cursor = findExtractBoundary(timeline, livePlaybackRef.current.cursor, 'prev');
+        livePlaybackRef.current.skipRequest = null;
+        continue;
+      } else if (livePlaybackRef.current.skipRequest === 'skip-item') {
+        livePlaybackRef.current.cursor++;
+        livePlaybackRef.current.skipRequest = null;
+        continue;
+      }
+
+      const idx = livePlaybackRef.current.cursor;
+      const item = timeline[idx];
+      setLiveItemIndex(idx);
+      setLiveCurrentLabel(describeItem(item, timeline, idx));
+
+      try {
+        await playLiveItem(item, ctx);
+      } catch (e) {
+        console.warn('Live item error:', e);
+      }
+
+      // If a skip was requested DURING the item, the abort handler set skipRequest
+      // and the loop will pick it up. Otherwise advance.
+      if (!livePlaybackRef.current.skipRequest && !livePlaybackRef.current.stopped) {
+        livePlaybackRef.current.cursor++;
       }
     }
+
     setLivePlaying(false);
+    setLivePaused(false);
+    setLiveCurrentLabel('');
+  };
+
+  // Play a single timeline item, returns when done or aborted
+  const playLiveItem = (item, ctx) => {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; livePlaybackRef.current.abortCurrent = null; resolve(); } };
+
+      if (item.type === 'tts') {
+        let utter = null;
+        const abort = () => { try { window.speechSynthesis.cancel(); } catch (e) {} finish(); };
+        livePlaybackRef.current.abortCurrent = abort;
+        // Pause-aware: speakLive returns a promise that resolves when done
+        speakLive(item.text).then(finish).catch(finish);
+      } else if (item.type === 'silence') {
+        const dur = item.duration * 1000;
+        let elapsed = 0;
+        let timeoutId = null;
+        const tick = () => {
+          if (done) return;
+          if (!livePlaybackRef.current.paused) {
+            elapsed += 100;
+          }
+          if (elapsed >= dur) { finish(); return; }
+          timeoutId = setTimeout(tick, 100);
+        };
+        const abort = () => { clearTimeout(timeoutId); finish(); };
+        livePlaybackRef.current.abortCurrent = abort;
+        timeoutId = setTimeout(tick, 100);
+      } else if (item.type === 'audio') {
+        const src = ctx.createBufferSource();
+        src.buffer = item.buffer;
+        src.connect(ctx.destination);
+        let stoppedManually = false;
+        const abort = () => { stoppedManually = true; try { src.stop(); } catch (e) {} finish(); };
+        livePlaybackRef.current.abortCurrent = abort;
+        src.onended = () => finish();
+        if (item.bufferOffset != null) {
+          src.start(0, item.bufferOffset, item.playDuration);
+        } else {
+          src.start();
+        }
+      } else if (item.type === 'youtube') {
+        const abort = () => {
+          if (ytPlayerRef.current) {
+            try { ytPlayerRef.current.stopVideo(); } catch (e) {}
+          }
+          finish();
+        };
+        livePlaybackRef.current.abortCurrent = abort;
+        playYouTubeSegment(item.videoId, item.startSec, item.endSec).then(finish).catch(finish);
+      } else if (item.type === 'spotify') {
+        const abort = () => {
+          if (spotifyPlayerRef.current) {
+            try { spotifyPlayerRef.current.pause(); } catch (e) {}
+          }
+          finish();
+        };
+        livePlaybackRef.current.abortCurrent = abort;
+        playSpotifySegment(item.uri, item.startSec, item.endSec).then(finish).catch(finish);
+      } else {
+        finish();
+      }
+    });
+  };
+
+  const pauseLive = () => {
+    if (!livePlaying) return;
+    livePlaybackRef.current.paused = true;
+    setLivePaused(true);
+    // Pause underlying players
+    try { window.speechSynthesis.pause(); } catch (e) {}
+    if (ytPlayerRef.current) { try { ytPlayerRef.current.pauseVideo(); } catch (e) {} }
+    if (spotifyPlayerRef.current) { try { spotifyPlayerRef.current.pause(); } catch (e) {} }
+    // Audio sources can't be paused; they keep playing until done. Acceptable for short clips.
+  };
+
+  const resumeLive = () => {
+    if (!livePlaying) return;
+    livePlaybackRef.current.paused = false;
+    setLivePaused(false);
+    try { window.speechSynthesis.resume(); } catch (e) {}
+    if (ytPlayerRef.current) { try { ytPlayerRef.current.playVideo(); } catch (e) {} }
+    if (spotifyPlayerRef.current) { try { spotifyPlayerRef.current.resume(); } catch (e) {} }
+  };
+
+  const skipToNextExtract = () => {
+    if (!livePlaying) return;
+    livePlaybackRef.current.skipRequest = 'next-extract';
+    livePlaybackRef.current.abortCurrent?.('skip');
+  };
+
+  const skipToPrevExtract = () => {
+    if (!livePlaying) return;
+    livePlaybackRef.current.skipRequest = 'prev-extract';
+    livePlaybackRef.current.abortCurrent?.('skip');
+  };
+
+  const skipCurrentItem = () => {
+    if (!livePlaying) return;
+    livePlaybackRef.current.skipRequest = 'skip-item';
+    livePlaybackRef.current.abortCurrent?.('skip');
   };
 
   const compileAudio = async () => {
@@ -1824,12 +2015,47 @@ export default function App() {
           )}
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={playLiveFull} disabled={isCompiling || filledCount === 0}
-              className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
-              style={{ background: livePlaying ? '#8b2c1e' : 'transparent', color: livePlaying ? '#fdfbf5' : '#2a2520' }}>
-              {livePlaying ? <Pause size={16} /> : <Play size={16} />}
-              {livePlaying ? 'Stop preview' : 'Preview full exam (live)'}
-            </button>
+            {!livePlaying ? (
+              <button onClick={playLiveFull} disabled={isCompiling || filledCount === 0}
+                className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
+                style={{ background: 'transparent' }}>
+                <Play size={16} /> Preview full exam (live)
+              </button>
+            ) : (
+              <div className="flex items-stretch hairline" style={{ borderRadius: '2px', overflow: 'hidden' }}>
+                <button onClick={skipToPrevExtract}
+                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
+                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  title="Jump to previous extract">
+                  <SkipBack size={14} />
+                </button>
+                <button onClick={livePaused ? resumeLive : pauseLive}
+                  className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider font-semibold"
+                  style={{ background: livePaused ? '#8b2c1e' : '#fdfbf5', color: livePaused ? '#fdfbf5' : '#2a2520', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  title={livePaused ? 'Resume' : 'Pause'}>
+                  {livePaused ? <Play size={14} /> : <Pause size={14} />}
+                  {livePaused ? 'Resume' : 'Pause'}
+                </button>
+                <button onClick={skipCurrentItem}
+                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
+                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  title="Skip current segment (announcement, silence, or audio)">
+                  <ChevronsRight size={14} />
+                </button>
+                <button onClick={skipToNextExtract}
+                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
+                  style={{ background: '#fdfbf5', borderRight: '1px solid rgba(42,37,32,0.12)' }}
+                  title="Jump to next extract">
+                  <SkipForward size={14} />
+                </button>
+                <button onClick={playLiveFull}
+                  className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider"
+                  style={{ background: '#2a2520', color: '#fdfbf5' }}
+                  title="Stop preview">
+                  <Square size={12} /> Stop
+                </button>
+              </div>
+            )}
 
             <button onClick={compileAudio} disabled={isCompiling || filledCount === 0 || livePlaying}
               className="flex items-center gap-2 px-5 py-3 mono-font text-sm uppercase tracking-wider font-semibold accent-bg"
@@ -1847,6 +2073,28 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {livePlaying && (
+            <div className="mt-4 paper hairline p-3" style={{ borderRadius: '2px', background: '#fdfbf5' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="mono-font text-xs uppercase tracking-wider opacity-60" style={{ minWidth: '60px' }}>
+                  Now: {livePaused && <span className="accent">PAUSED</span>}
+                </div>
+                <div className="text-sm font-semibold flex-1 truncate">{liveCurrentLabel}</div>
+                <div className="mono-font text-xs opacity-60">
+                  {liveItemIndex + 1} / {liveTotalItems}
+                </div>
+              </div>
+              <div className="h-1" style={{ background: 'rgba(42,37,32,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${liveTotalItems > 0 ? ((liveItemIndex + 1) / liveTotalItems) * 100 : 0}%`,
+                  height: '100%',
+                  background: '#8b2c1e',
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 paper hairline p-4" style={{ borderRadius: '2px', background: '#f0e8d6' }}>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2 flex items-center gap-1.5">

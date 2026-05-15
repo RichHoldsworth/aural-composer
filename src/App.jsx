@@ -14,10 +14,10 @@ const DEFAULT_QUESTIONS = [
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'This is the Music listening examination. You will now have five minutes to read through all of the listening questions. You may not write anything during this time.',
+  opening: 'Trinity School Examinations, Music Listening and Appraising, This sound file contains the extracts you will need to answer the questions. ',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
-  betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
+  betweenPlays: 'Here is the extract for the {ord}{final} time.',
   ending: 'This is the end of the listening section of the examination.',
 };
 
@@ -737,24 +737,7 @@ export default function App() {
 
   // ===== Save / load exam config =====
   const saveExamConfig = () => {
-    const config = {
-      version: 1,
-      savedAt: new Date().toISOString(),
-      examTitle,
-      readingTime,
-      script,
-      questions: questions.map(q => ({
-        id: q.id,
-        label: q.label,
-        plays: q.plays,
-        gapBetweenPlays: q.gapBetweenPlays,
-        gapAfter: q.gapAfter,
-        marks: q.marks,
-        intro: q.intro,
-        // Sources are NOT saved (audio buffers are too big; URLs/IDs are saved for non-file sources)
-        source: q.source && q.source.kind !== 'file' ? q.source : null,
-      })),
-    };
+    const config = buildConfig();
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -771,18 +754,116 @@ export default function App() {
       const config = JSON.parse(text);
       if (!config.questions || !Array.isArray(config.questions)) throw new Error('Invalid config file');
       if (!confirm('Loading a saved config will replace your current setup (uploaded audio will be cleared). Continue?')) return;
-      setExamTitle(config.examTitle || '');
-      setReadingTime(config.readingTime || 300);
-      if (config.script) setScript(config.script);
-      setQuestions(config.questions.map(q => ({
-        ...q,
-        // Restored sources retain their kind/url/timestamps but no decoded buffer
-        source: q.source && q.source.kind !== 'file' ? q.source : null,
-      })));
+      applyConfig(config);
     } catch (err) {
       alert(`Could not load config: ${err.message}`);
     }
   };
+
+  // Apply a config object to current state
+  const applyConfig = (config) => {
+    setExamTitle(config.examTitle || '');
+    setReadingTime(config.readingTime || 300);
+    if (config.script) setScript(config.script);
+    setQuestions(config.questions.map(q => ({
+      ...q,
+      source: q.source && q.source.kind !== 'file' ? q.source : null,
+    })));
+  };
+
+  // Build a config object from current state
+  const buildConfig = () => ({
+    version: 1,
+    savedAt: new Date().toISOString(),
+    examTitle,
+    readingTime,
+    script,
+    questions: questions.map(q => ({
+      id: q.id,
+      label: q.label,
+      plays: q.plays,
+      gapBetweenPlays: q.gapBetweenPlays,
+      gapAfter: q.gapAfter,
+      marks: q.marks,
+      intro: q.intro,
+      source: q.source && q.source.kind !== 'file' ? q.source : null,
+    })),
+  });
+
+  // ===== Browser-stored exam library =====
+  const SAVED_EXAMS_KEY = 'aural_saved_exams';
+
+  const [savedExams, setSavedExams] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_EXAMS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  });
+
+  const persistSavedExams = (list) => {
+    setSavedExams(list);
+    try { localStorage.setItem(SAVED_EXAMS_KEY, JSON.stringify(list)); } catch (e) {
+      alert('Could not save: browser storage may be full.');
+    }
+  };
+
+  const saveCurrentExam = () => {
+    const defaultName = examTitle || `Exam ${new Date().toLocaleDateString()}`;
+    const name = prompt('Save this exam as:', defaultName);
+    if (!name) return;
+    const config = buildConfig();
+    const entry = {
+      id: `exam_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      config,
+    };
+    // Replace any existing entry with same name
+    const filtered = savedExams.filter(x => x.name !== name);
+    persistSavedExams([entry, ...filtered]);
+  };
+
+  const updateExistingExam = (examId) => {
+    const idx = savedExams.findIndex(x => x.id === examId);
+    if (idx === -1) return;
+    if (!confirm(`Update "${savedExams[idx].name}" with current settings?`)) return;
+    const updated = [...savedExams];
+    updated[idx] = { ...updated[idx], config: buildConfig(), savedAt: new Date().toISOString() };
+    persistSavedExams(updated);
+  };
+
+  const loadSavedExam = (examId) => {
+    const entry = savedExams.find(x => x.id === examId);
+    if (!entry) return;
+    const anyFilled = questions.some(q => q.source);
+    if (anyFilled && !confirm(`Load "${entry.name}"? Uploaded audio in the current exam will be cleared (other sources are kept).`)) return;
+    applyConfig(entry.config);
+  };
+
+  const renameSavedExam = (examId) => {
+    const entry = savedExams.find(x => x.id === examId);
+    if (!entry) return;
+    const newName = prompt('Rename to:', entry.name);
+    if (!newName || newName === entry.name) return;
+    persistSavedExams(savedExams.map(x => x.id === examId ? { ...x, name: newName } : x));
+  };
+
+  const deleteSavedExam = (examId) => {
+    const entry = savedExams.find(x => x.id === examId);
+    if (!entry) return;
+    if (!confirm(`Delete "${entry.name}"? This cannot be undone.`)) return;
+    persistSavedExams(savedExams.filter(x => x.id !== examId));
+  };
+
+  const newBlankExam = () => {
+    if (!confirm('Start a fresh exam? Current settings will be cleared (you can save first if needed).')) return;
+    setExamTitle('Untitled exam');
+    setQuestions(DEFAULT_QUESTIONS.map(q => ({ ...q, source: null })));
+    setScript(DEFAULT_SCRIPT);
+    setReadingTime(300);
+  };
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const estimateSpeechDuration = (text) => {
     const words = text.trim().split(/\s+/).length;
@@ -1264,14 +1345,14 @@ export default function App() {
   return (
     <div className="min-h-screen" style={{
       background: 'linear-gradient(180deg, #f5f1e8 0%, #ede5d3 100%)',
-      fontFamily: "'Source Serif Pro', 'Georgia', serif",
+      fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
       color: '#2a2520',
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
         body { margin: 0; }
-        .display-font { font-family: 'Cormorant Garamond', serif; }
-        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        .display-font { font-family: 'DM Sans', system-ui, sans-serif; letter-spacing: -0.01em; }
+        .mono-font { font-family: 'DM Mono', 'Menlo', monospace; }
         .ink-shadow { box-shadow: 0 1px 0 rgba(42,37,32,0.04), 0 4px 16px rgba(42,37,32,0.06), 0 0 0 1px rgba(42,37,32,0.08); }
         .accent { color: #8b2c1e; }
         .accent-bg { background: #8b2c1e; }
@@ -1303,11 +1384,11 @@ export default function App() {
       <div className="yt-hidden"><div ref={ytContainerRef}></div></div>
 
       <header className="hairline" style={{ borderBottom: '2px solid #2a2520', background: '#fdfbf5' }}>
-        <div className="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
           <div>
             <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Listening Examination Audio Compiler</div>
             <h1 className="display-font text-3xl font-bold leading-none">
-              <span className="italic">Aural</span> · <span>Composer</span>
+              Aural Composer
             </h1>
           </div>
           <button onClick={() => setShowSettings(!showSettings)}
@@ -1321,7 +1402,7 @@ export default function App() {
 
       {showSettings && (
         <div className="paper hairline" style={{ borderBottom: '1px solid rgba(42,37,32,0.12)' }}>
-          <div className="max-w-6xl mx-auto px-8 py-6">
+          <div className="max-w-7xl mx-auto px-8 py-6">
             <div className="mb-4">
               <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2">TTS Provider</div>
               <div className="flex gap-2 flex-wrap">
@@ -1459,7 +1540,68 @@ export default function App() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-8 py-8">
+      <div className="flex max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
+        {/* Sidebar */}
+        <aside style={{
+          width: sidebarOpen ? '260px' : '48px',
+          flexShrink: 0,
+          borderRight: '1px solid rgba(42,37,32,0.1)',
+          transition: 'width 0.2s ease',
+          background: '#fdfbf5',
+        }}>
+          <div className="sticky top-0 p-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="w-full flex items-center justify-center gap-2 p-2 hairline mono-font text-xs uppercase tracking-wider opacity-70 hover:opacity-100"
+              style={{ background: 'transparent', borderRadius: '4px' }}
+              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
+              <ListMusic size={14} />
+              {sidebarOpen && <span>Saved Exams</span>}
+            </button>
+
+            {sidebarOpen && (
+              <>
+                <div className="flex gap-1 mt-3">
+                  <button onClick={newBlankExam}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
+                    style={{ background: 'transparent', borderRadius: '3px' }}
+                    title="Start a new blank exam">
+                    <Plus size={11} /> New
+                  </button>
+                  <button onClick={saveCurrentExam}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
+                    style={{ color: '#fdfbf5', borderRadius: '3px' }}
+                    title="Save current exam to your browser">
+                    <Save size={11} /> Save
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-1 max-h-[60vh] overflow-y-auto">
+                  {savedExams.length === 0 ? (
+                    <div className="text-xs opacity-50 px-2 py-4 text-center" style={{ lineHeight: 1.5 }}>
+                      No saved exams yet.<br />
+                      Click <strong>Save</strong> to store the current setup in your browser.
+                    </div>
+                  ) : (
+                    savedExams.map(entry => (
+                      <SavedExamRow key={entry.id} entry={entry}
+                        onLoad={() => loadSavedExam(entry.id)}
+                        onUpdate={() => updateExistingExam(entry.id)}
+                        onRename={() => renameSavedExam(entry.id)}
+                        onDelete={() => deleteSavedExam(entry.id)} />
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-4 pt-4 text-xs opacity-50 px-2" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)', lineHeight: 1.5 }}>
+                  Saved exams live in your browser only. To share an exam with someone else, use <strong>Save config</strong> below to download a file.
+                </div>
+              </>
+            )}
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0 px-8 py-8">
         {/* PDF + Save/Load toolbar */}
         <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px', padding: '20px' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1501,7 +1643,7 @@ export default function App() {
         <section className="mb-10">
           <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Examination</div>
           <input type="text" value={examTitle} onChange={e => setExamTitle(e.target.value)}
-            className="display-font w-full bg-transparent border-none text-4xl font-semibold p-0"
+            className="display-font w-full bg-transparent border-none text-3xl font-semibold p-0"
             style={{ borderBottom: '1px solid rgba(42,37,32,0.15)', paddingBottom: '8px' }} />
 
           <div className="flex flex-wrap gap-8 mt-6 mono-font text-xs uppercase tracking-wider">
@@ -1529,8 +1671,8 @@ export default function App() {
             className="w-full flex items-center justify-between p-5"
             style={{ background: 'transparent', borderBottom: showScript ? '1px solid rgba(42,37,32,0.1)' : 'none' }}>
             <div className="text-left">
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Step 01 · Optional</div>
-              <h2 className="display-font text-2xl font-semibold italic">Announcement script</h2>
+              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Optional</div>
+              <h2 className="display-font text-xl font-semibold">Announcement script</h2>
             </div>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60">
               {showScript ? '− Hide' : '+ Edit wording'}
@@ -1542,19 +1684,19 @@ export default function App() {
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Opening announcement (played at the very start, before reading time)</label>
                 <textarea value={script.opening} onChange={e => setScript({ ...script, opening: e.target.value })} rows={3}
-                  className="w-full text-sm italic" style={{ fontFamily: "'Source Serif Pro', serif", resize: 'vertical' }} />
+                  className="w-full text-sm" style={{ resize: 'vertical' }} />
               </div>
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">After reading time (just before the first extract)</label>
                 <textarea value={script.postReading} onChange={e => setScript({ ...script, postReading: e.target.value })} rows={2}
-                  className="w-full text-sm italic" style={{ fontFamily: "'Source Serif Pro', serif", resize: 'vertical' }} />
+                  className="w-full text-sm" style={{ resize: 'vertical' }} />
               </div>
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">
                   Between plays template — placeholders: <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{ord}'}</code> (second/third…) · <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{n}'}</code> (2/3…) · <code className="mono-font" style={{ background: '#f0e8d6', padding: '1px 4px', borderRadius: '2px' }}>{'{final}'}</code> (auto-adds " and final" on the last play)
                 </label>
                 <input type="text" value={script.betweenPlays} onChange={e => setScript({ ...script, betweenPlays: e.target.value })}
-                  className="w-full text-sm italic" style={{ fontFamily: "'Source Serif Pro', serif" }} />
+                  className="w-full text-sm" />
                 <div className="text-xs opacity-60 mt-1">
                   Example for a 3-play extract → 2nd: <em>"{renderBetweenPlays(script.betweenPlays, 2, false)}"</em> · 3rd: <em>"{renderBetweenPlays(script.betweenPlays, 3, true)}"</em>
                 </div>
@@ -1562,7 +1704,7 @@ export default function App() {
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Closing announcement (after the final extract)</label>
                 <textarea value={script.ending} onChange={e => setScript({ ...script, ending: e.target.value })} rows={2}
-                  className="w-full text-sm italic" style={{ fontFamily: "'Source Serif Pro', serif", resize: 'vertical' }} />
+                  className="w-full text-sm" style={{ resize: 'vertical' }} />
               </div>
               <div className="flex justify-end pt-2">
                 <button onClick={() => setScript(DEFAULT_SCRIPT)}
@@ -1581,7 +1723,7 @@ export default function App() {
             <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
               <div>
                 <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Spotify · Optional</div>
-                <h2 className="display-font text-xl font-semibold italic flex items-center gap-2">
+                <h2 className="display-font text-lg font-semibold flex items-center gap-2">
                   <ListMusic size={18} className="accent" /> Import from Spotify
                 </h2>
               </div>
@@ -1630,10 +1772,7 @@ export default function App() {
 
         <section>
           <div className="flex items-baseline justify-between mb-4">
-            <div>
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Step 02</div>
-              <h2 className="display-font text-2xl font-semibold italic">Extracts</h2>
-            </div>
+            <h2 className="display-font text-xl font-semibold">Extracts</h2>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60">File · YouTube · Spotify</div>
           </div>
 
@@ -1664,8 +1803,8 @@ export default function App() {
         <section className="mt-12 paper ink-shadow" style={{ borderRadius: '4px', padding: '32px' }}>
           <div className="flex items-baseline justify-between mb-6 flex-wrap gap-4">
             <div>
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Step 03</div>
-              <h2 className="display-font text-3xl font-semibold">Compile & Export</h2>
+              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Output</div>
+              <h2 className="display-font text-2xl font-semibold">Compile & Export</h2>
             </div>
             <label className="flex items-center gap-2 mono-font text-xs uppercase tracking-wider opacity-60 cursor-pointer">
               <input type="checkbox" checked={shortReadingForTesting} onChange={e => setShortReadingForTesting(e.target.checked)} />
@@ -1724,8 +1863,9 @@ export default function App() {
         </section>
 
         <footer className="mt-16 pt-8 text-center mono-font text-xs uppercase tracking-widest opacity-40" style={{ borderTop: '1px solid rgba(42,37,32,0.1)' }}>
-          Aural Composer · Prototype v2
+          Aural Composer · v1.0
         </footer>
+        </main>
       </div>
     </div>
   );
@@ -1782,7 +1922,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
             <GripVertical size={14} />
           </div>
           <div className="mono-font text-xs uppercase tracking-widest opacity-40">No.</div>
-          <div className="display-font text-3xl font-semibold leading-none">{index + 1}</div>
+          <div className="display-font text-2xl font-semibold leading-none">{index + 1}</div>
           {q.marks != null && (
             <div className="mono-font text-xs opacity-60 mt-1 flex items-center gap-1">
               <Award size={10} /> {q.marks}
@@ -1824,7 +1964,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
           <div className="mb-4">
             <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Announcement</label>
             <textarea value={q.intro} onChange={e => onUpdate(q.id, 'intro', e.target.value)} disabled={disabled} rows={2}
-              className="w-full text-sm italic" style={{ fontFamily: "'Source Serif Pro', serif", resize: 'vertical' }} />
+              className="w-full text-sm" style={{ resize: 'vertical' }} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -2066,6 +2206,61 @@ function audioBufferToWav(buffer) {
 
 function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+}
+
+// ===== Saved exam row in sidebar =====
+function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const date = new Date(entry.savedAt);
+  const dateStr = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const extractCount = entry.config?.questions?.length || 0;
+
+  return (
+    <div className="group relative hairline" style={{ borderRadius: '3px', background: 'transparent' }}>
+      <button onClick={onLoad}
+        className="w-full text-left p-2 hover:bg-stone-100"
+        style={{ background: 'transparent', borderRadius: '3px' }}
+        title={`Load "${entry.name}"`}>
+        <div className="text-sm font-medium truncate" style={{ paddingRight: '20px' }}>
+          {entry.name}
+        </div>
+        <div className="mono-font text-xs opacity-50 mt-0.5">
+          {extractCount} extract{extractCount === 1 ? '' : 's'} · {dateStr}
+        </div>
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+        className="absolute top-1 right-1 p-1 opacity-40 hover:opacity-100"
+        style={{ background: 'transparent', borderRadius: '3px' }}
+        title="Options">
+        <ChevronDown size={12} />
+      </button>
+
+      {menuOpen && (
+        <>
+          <div onClick={() => setMenuOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+          <div className="absolute right-1 top-7 paper ink-shadow"
+            style={{ borderRadius: '3px', minWidth: '140px', zIndex: 11 }}>
+            <button onClick={() => { setMenuOpen(false); onUpdate(); }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
+              style={{ background: 'transparent' }}>
+              <Save size={11} /> Update with current
+            </button>
+            <button onClick={() => { setMenuOpen(false); onRename(); }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
+              style={{ background: 'transparent' }}>
+              <FileText size={11} /> Rename
+            </button>
+            <button onClick={() => { setMenuOpen(false); onDelete(); }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-stone-100 flex items-center gap-2"
+              style={{ background: 'transparent', color: '#8b2c1e' }}>
+              <Trash2 size={11} /> Delete
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ===== Waveform trimmer =====

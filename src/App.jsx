@@ -901,8 +901,20 @@ export default function App() {
       if (q.source) {
         for (let i = 0; i < q.plays; i++) {
           if (q.source.kind === 'file') {
-            timeline.push({ type: 'audio', buffer: q.source.buffer, start: cursor, duration: q.source.duration, questionId: q.id, playNumber: i + 1 });
-            cursor += q.source.duration;
+            const trimStart = q.source.trimStart || 0;
+            const trimEnd = q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration;
+            const playDur = trimEnd - trimStart;
+            timeline.push({
+              type: 'audio',
+              buffer: q.source.buffer,
+              bufferOffset: trimStart,
+              playDuration: playDur,
+              start: cursor,
+              duration: playDur,
+              questionId: q.id,
+              playNumber: i + 1,
+            });
+            cursor += playDur;
           } else if (q.source.kind === 'youtube') {
             timeline.push({ type: 'youtube', videoId: q.source.videoId, startSec: q.source.start, endSec: q.source.end, start: cursor, duration: q.source.duration, questionId: q.id, playNumber: i + 1 });
             cursor += q.source.duration;
@@ -925,10 +937,11 @@ export default function App() {
             const isFinal = upcomingPlayNumber === q.plays;
             const announce = renderBetweenPlays(script.betweenPlays, upcomingPlayNumber, isFinal);
             const announceDur = estimateSpeechDuration(announce);
+            // Thinking time FIRST (silence), then the announcement as a cue for the next play
+            const silenceBefore = Math.max(0, q.gapBetweenPlays - announceDur);
+            addSilence(silenceBefore, 'Thinking time');
             timeline.push({ type: 'tts', text: announce, start: cursor, duration: announceDur });
             cursor += announceDur;
-            const remaining = Math.max(0, q.gapBetweenPlays - announceDur);
-            addSilence(remaining, 'Thinking time');
           }
         }
       } else {
@@ -960,7 +973,9 @@ export default function App() {
             const src = ctx.createBufferSource();
             src.buffer = q.source.buffer;
             src.connect(ctx.destination);
-            src.start();
+            const trimStart = q.source.trimStart || 0;
+            const trimEnd = q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration;
+            src.start(0, trimStart, trimEnd - trimStart);
             previewStopRef.current = { stop: () => { try { src.stop(); } catch(e){} } };
             src.onended = resolve;
           });
@@ -969,14 +984,14 @@ export default function App() {
         } else if (q.source?.kind === 'spotify') {
           await playSpotifySegment(q.source.uri, q.source.start, q.source.end);
         }
-        // Between-plays announcement (not after last play)
+        // Between-plays announcement (not after last play): thinking time first, then announcement as cue
         if (i < q.plays - 1) {
           const upcoming = i + 2;
           const announce = renderBetweenPlays(script.betweenPlays, upcoming, upcoming === q.plays);
-          await speakLive(announce);
           // Short pause to simulate thinking time, capped at 5s for preview brevity
           const pauseMs = Math.min(q.gapBetweenPlays * 1000, 5000);
           await new Promise(r => setTimeout(r, pauseMs));
+          await speakLive(announce);
         }
       }
     } finally {
@@ -1058,7 +1073,11 @@ export default function App() {
           const src = ctx.createBufferSource();
           src.buffer = item.buffer;
           src.connect(ctx.destination);
-          src.start();
+          if (item.bufferOffset != null) {
+            src.start(0, item.bufferOffset, item.playDuration);
+          } else {
+            src.start();
+          }
           src.onended = resolve;
         });
       } else if (item.type === 'youtube') {
@@ -1078,12 +1097,22 @@ export default function App() {
     const hasSpotify = filled.some(q => q.source.kind === 'spotify');
     const usingPremiumTTS = (ttsProvider === 'eleven' && elevenKey) || (ttsProvider === 'openai' && openaiKey);
 
-    if (hasYouTube || hasSpotify) {
-      const lines = [];
-      if (hasYouTube) lines.push('• YouTube clips cannot be embedded in the WAV (DRM). They will be silence in the file.');
-      if (hasSpotify) lines.push('• Spotify tracks cannot be embedded in the WAV (DRM). If a 30-second preview clip is available AND your start/end timestamps fall inside the first 30 seconds, that portion will be baked in. Otherwise it will be silence.');
-      lines.push('');
-      lines.push('All sources play correctly during "Preview full exam (live)". Continue compiling?');
+    // Collect warnings about what won't be in the WAV
+    const warnings = [];
+    if (!usingPremiumTTS) {
+      warnings.push('• Announcements will be marker tones (browser TTS cannot be recorded into the file). Set up ElevenLabs or OpenAI in Voice & API to get spoken announcements baked in.');
+    }
+    if (hasYouTube) warnings.push('• YouTube clips will be silence in the WAV (DRM). They play correctly in live preview.');
+    if (hasSpotify) warnings.push('• Spotify tracks will be silence in the WAV (DRM), unless the clip fits inside the first 30 seconds of a track that has a preview available. They play correctly in live preview.');
+
+    if (warnings.length > 0) {
+      const lines = [
+        'A few things to know about this WAV export:',
+        '',
+        ...warnings,
+        '',
+        'Continue compiling anyway?',
+      ];
       const ok = confirm(lines.join('\n'));
       if (!ok) return;
     }
@@ -1101,21 +1130,42 @@ export default function App() {
 
       const ttsItems = timeline.filter(t => t.type === 'tts');
       const ttsBuffers = new Map();
+      let ttsBakeMode = 'marker'; // 'marker' | 'eleven' | 'openai'
 
-      if (usingPremiumTTS) {
+      if (ttsProvider === 'eleven' && elevenKey) {
+        ttsBakeMode = 'eleven';
+      } else if (ttsProvider === 'openai' && openaiKey) {
+        ttsBakeMode = 'openai';
+      }
+
+      if (ttsBakeMode !== 'marker') {
+        const providerName = ttsBakeMode === 'eleven' ? 'ElevenLabs' : 'OpenAI';
+        let successCount = 0;
         for (let i = 0; i < ttsItems.length; i++) {
-          setCompileStatus(`Generating announcement ${i + 1} of ${ttsItems.length}...`);
+          setCompileStatus(`Generating ${providerName} announcement ${i + 1} / ${ttsItems.length}...`);
           setCompileProgress((i / ttsItems.length) * 70);
           try {
             const buf = await renderTTSBuffer(ttsItems[i].text);
-            ttsBuffers.set(i, buf);
+            if (buf) {
+              ttsBuffers.set(i, buf);
+              successCount++;
+            } else {
+              console.warn(`TTS returned null buffer for: "${ttsItems[i].text.slice(0, 50)}"`);
+              ttsBuffers.set(i, await makeMarkerTone(ttsItems[i].duration));
+            }
           } catch (err) {
-            console.warn('TTS failed:', err);
-            ttsBuffers.set(i, null);
+            console.warn(`TTS failed for "${ttsItems[i].text.slice(0, 50)}": ${err.message}`);
+            ttsBuffers.set(i, await makeMarkerTone(ttsItems[i].duration));
           }
         }
+        if (successCount === 0) {
+          alert(`All ${providerName} announcements failed to generate. Check your API key and try again.\n\nThe WAV will be exported with marker tones only.`);
+        } else if (successCount < ttsItems.length) {
+          console.warn(`${ttsItems.length - successCount} of ${ttsItems.length} announcements fell back to markers.`);
+        }
       } else {
-        setCompileStatus('Browser TTS cannot be recorded — inserting timing markers...');
+        // No premium TTS — markers only
+        setCompileStatus('No premium TTS key set — using timing markers for announcements...');
         for (let i = 0; i < ttsItems.length; i++) {
           ttsBuffers.set(i, await makeMarkerTone(ttsItems[i].duration));
         }
@@ -1140,7 +1190,11 @@ export default function App() {
           const src = offlineCtx.createBufferSource();
           src.buffer = item.buffer;
           src.connect(offlineCtx.destination);
-          src.start(item.start);
+          if (item.bufferOffset != null) {
+            src.start(item.start, item.bufferOffset, item.playDuration);
+          } else {
+            src.start(item.start);
+          }
         } else if (item.type === 'tts') {
           const buf = ttsBuffers.get(ttsIndex);
           ttsIndex++;
@@ -1812,9 +1866,21 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                       )}
                     </div>
                     <div className="mono-font text-xs opacity-70 mt-0.5">
-                      {q.source.kind === 'file' && (
-                        <>{formatTime(q.source.duration)} · {q.plays}× = {formatTime(q.source.duration * q.plays + q.gapBetweenPlays * (q.plays - 1))}</>
-                      )}
+                      {q.source.kind === 'file' && (() => {
+                        const trimStart = q.source.trimStart || 0;
+                        const trimEnd = q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration;
+                        const playDur = trimEnd - trimStart;
+                        const isTrimmed = trimStart > 0 || trimEnd < q.source.buffer.duration - 0.01;
+                        return (
+                          <>
+                            {isTrimmed ? (
+                              <>{formatTime(trimStart)} → {formatTime(trimEnd)} · clip {formatTime(playDur)}</>
+                            ) : (
+                              <>{formatTime(q.source.buffer.duration)}</>
+                            )} · {q.plays}× = {formatTime(playDur * q.plays + q.gapBetweenPlays * (q.plays - 1))}
+                          </>
+                        );
+                      })()}
                       {q.source.kind === 'youtube' && (
                         <>{q.source.startStr || formatTime(q.source.start)} → {q.source.endStr || formatTime(q.source.end)} · clip {formatTime(q.source.duration)} · {q.plays}× plays</>
                       )}
@@ -1848,6 +1914,13 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                     </button>
                   </div>
                   <div className="text-xs opacity-60 mt-2">Run this in your terminal to extract just the clip as MP3, then upload it as a file for full WAV export support.</div>
+                </details>
+              )}
+              {q.source.kind === 'file' && q.source.buffer && (
+                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(42,37,32,0.15)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
+                  <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Trim audio</summary>
+                  <WaveformTrimmer source={q.source} disabled={disabled}
+                    onUpdate={(s, e) => onUpdate(q.id, 'source', { ...q.source, trimStart: s, trimEnd: e })} />
                 </details>
               )}
             </div>
@@ -1993,6 +2066,280 @@ function audioBufferToWav(buffer) {
 
 function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+}
+
+// ===== Waveform trimmer =====
+function WaveformTrimmer({ source, onUpdate, disabled }) {
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(600);
+  const buffer = source.buffer;
+  const totalDur = buffer.duration;
+
+  const [trimStart, setTrimStart] = useState(source.trimStart || 0);
+  const [trimEnd, setTrimEnd] = useState(source.trimEnd != null ? source.trimEnd : totalDur);
+  const [dragging, setDragging] = useState(null); // 'start' | 'end' | null
+  const [playhead, setPlayhead] = useState(null); // seconds, while playing
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playSourceRef = useRef(null);
+  const playStartRef = useRef(0);
+  const playRafRef = useRef(null);
+
+  // Width tracking
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setContainerWidth(Math.floor(e.contentRect.width));
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Draw waveform
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = containerWidth;
+    const H = 80;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    // Compute peaks
+    const data = buffer.getChannelData(0);
+    const samplesPerPixel = Math.max(1, Math.floor(data.length / W));
+    const mid = H / 2;
+
+    // Draw inactive (outside trim) in muted, active (inside trim) in accent
+    const startX = (trimStart / totalDur) * W;
+    const endX = (trimEnd / totalDur) * W;
+
+    for (let x = 0; x < W; x++) {
+      let min = 0, max = 0;
+      const offset = x * samplesPerPixel;
+      for (let i = 0; i < samplesPerPixel; i++) {
+        const v = data[offset + i] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const yMin = mid + min * mid * 0.85;
+      const yMax = mid + max * mid * 0.85;
+      const inside = x >= startX && x <= endX;
+      ctx.fillStyle = inside ? '#8b2c1e' : 'rgba(42,37,32,0.25)';
+      ctx.fillRect(x, yMin, 1, Math.max(1, yMax - yMin));
+    }
+
+    // Center line
+    ctx.fillStyle = 'rgba(42,37,32,0.1)';
+    ctx.fillRect(0, mid, W, 1);
+  }, [containerWidth, buffer, trimStart, trimEnd, totalDur]);
+
+  // Mouse / touch handlers
+  const pixelToTime = (px) => Math.max(0, Math.min(totalDur, (px / containerWidth) * totalDur));
+
+  const onPointerDown = (e, which) => {
+    if (disabled) return;
+    e.preventDefault();
+    setDragging(which);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const t = pixelToTime(x);
+      if (dragging === 'start') {
+        const newStart = Math.min(t, trimEnd - 0.5);
+        setTrimStart(Math.max(0, newStart));
+      } else if (dragging === 'end') {
+        const newEnd = Math.max(t, trimStart + 0.5);
+        setTrimEnd(Math.min(totalDur, newEnd));
+      }
+    };
+    const onUp = () => setDragging(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [dragging, trimEnd, trimStart, totalDur, containerWidth]);
+
+  // Commit values to parent when drag ends
+  useEffect(() => {
+    if (dragging) return;
+    if ((trimStart !== (source.trimStart || 0)) || (trimEnd !== (source.trimEnd != null ? source.trimEnd : totalDur))) {
+      onUpdate(trimStart, trimEnd);
+    }
+  }, [dragging, trimStart, trimEnd]);
+
+  // Reset trim if source changes
+  useEffect(() => {
+    setTrimStart(source.trimStart || 0);
+    setTrimEnd(source.trimEnd != null ? source.trimEnd : totalDur);
+  }, [source.name, totalDur]);
+
+  // Playback of trimmed selection
+  const stopPlayback = () => {
+    if (playSourceRef.current) {
+      try { playSourceRef.current.stop(); } catch (e) {}
+      playSourceRef.current = null;
+    }
+    if (playRafRef.current) {
+      cancelAnimationFrame(playRafRef.current);
+      playRafRef.current = null;
+    }
+    setIsPlaying(false);
+    setPlayhead(null);
+  };
+
+  const startPlayback = (fromTime = null) => {
+    stopPlayback();
+    const startAt = fromTime != null ? fromTime : trimStart;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    const playDur = trimEnd - startAt;
+    src.start(0, startAt, playDur);
+    playSourceRef.current = src;
+    playStartRef.current = ctx.currentTime - 0; // time elapsed = ctx.currentTime
+    const baseAudioTime = ctx.currentTime;
+    setIsPlaying(true);
+    setPlayhead(startAt);
+    const tick = () => {
+      const elapsed = ctx.currentTime - baseAudioTime;
+      const current = startAt + elapsed;
+      if (current >= trimEnd) {
+        stopPlayback();
+        return;
+      }
+      setPlayhead(current);
+      playRafRef.current = requestAnimationFrame(tick);
+    };
+    playRafRef.current = requestAnimationFrame(tick);
+    src.onended = () => stopPlayback();
+  };
+
+  useEffect(() => () => stopPlayback(), []);
+
+  const playheadX = playhead != null ? (playhead / totalDur) * containerWidth : null;
+  const startX = (trimStart / totalDur) * containerWidth;
+  const endX = (trimEnd / totalDur) * containerWidth;
+
+  return (
+    <div className="mt-3 p-3 hairline" style={{ borderRadius: '2px', background: 'rgba(255,255,255,0.5)' }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="mono-font text-xs uppercase tracking-wider opacity-60">Trim</div>
+        <div className="mono-font text-xs opacity-70">
+          {formatTime(trimStart)} → {formatTime(trimEnd)} · clip {formatTime(trimEnd - trimStart)}
+        </div>
+      </div>
+
+      <div ref={containerRef} style={{ position: 'relative', height: '80px', userSelect: 'none', cursor: 'crosshair' }}>
+        <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '80px' }} />
+
+        {/* Start handle */}
+        <div
+          onMouseDown={(e) => onPointerDown(e, 'start')}
+          onTouchStart={(e) => onPointerDown(e, 'start')}
+          style={{
+            position: 'absolute', top: 0, left: `${startX}px`, transform: 'translateX(-50%)',
+            width: '12px', height: '80px', cursor: 'ew-resize',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <div style={{ width: '3px', height: '100%', background: '#8b2c1e' }} />
+          <div style={{
+            position: 'absolute', top: '-2px', width: '12px', height: '12px',
+            background: '#8b2c1e', borderRadius: '2px',
+          }} />
+        </div>
+
+        {/* End handle */}
+        <div
+          onMouseDown={(e) => onPointerDown(e, 'end')}
+          onTouchStart={(e) => onPointerDown(e, 'end')}
+          style={{
+            position: 'absolute', top: 0, left: `${endX}px`, transform: 'translateX(-50%)',
+            width: '12px', height: '80px', cursor: 'ew-resize',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <div style={{ width: '3px', height: '100%', background: '#8b2c1e' }} />
+          <div style={{
+            position: 'absolute', bottom: '-2px', width: '12px', height: '12px',
+            background: '#8b2c1e', borderRadius: '2px',
+          }} />
+        </div>
+
+        {/* Playhead */}
+        {playheadX != null && (
+          <div style={{
+            position: 'absolute', top: 0, left: `${playheadX}px`,
+            width: '2px', height: '80px', background: '#2a2520',
+            pointerEvents: 'none', boxShadow: '0 0 4px rgba(0,0,0,0.3)',
+          }} />
+        )}
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={() => isPlaying ? stopPlayback() : startPlayback()}
+          disabled={disabled}
+          className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
+          style={{ background: isPlaying ? '#8b2c1e' : 'transparent', color: isPlaying ? '#fdfbf5' : 'inherit' }}>
+          {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+          {isPlaying ? 'Stop' : 'Play selection'}
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <label className="mono-font text-xs uppercase tracking-wider opacity-60">Start</label>
+          <input type="text" value={formatTime(trimStart)}
+            onChange={(e) => {
+              const t = parseTimestamp(e.target.value);
+              if (t < trimEnd - 0.5) setTrimStart(Math.max(0, t));
+            }}
+            onBlur={() => onUpdate(trimStart, trimEnd)}
+            disabled={disabled}
+            className="w-16 text-xs mono-font" style={{ padding: '4px 6px' }} />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <label className="mono-font text-xs uppercase tracking-wider opacity-60">End</label>
+          <input type="text" value={formatTime(trimEnd)}
+            onChange={(e) => {
+              const t = parseTimestamp(e.target.value);
+              if (t > trimStart + 0.5) setTrimEnd(Math.min(totalDur, t));
+            }}
+            onBlur={() => onUpdate(trimStart, trimEnd)}
+            disabled={disabled}
+            className="w-16 text-xs mono-font" style={{ padding: '4px 6px' }} />
+        </div>
+
+        <button
+          onClick={() => { setTrimStart(0); setTrimEnd(totalDur); }}
+          disabled={disabled || (trimStart === 0 && trimEnd === totalDur)}
+          className="mono-font text-xs uppercase tracking-wider opacity-60 hover:opacity-100 underline"
+          style={{ background: 'transparent' }}>
+          Reset
+        </button>
+
+        <div className="flex-1" />
+        <div className="mono-font text-xs opacity-50">full: {formatTime(totalDur)}</div>
+      </div>
+    </div>
+  );
 }
 
 // ===== PDF drop zone =====

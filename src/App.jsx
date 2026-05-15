@@ -14,7 +14,7 @@ const DEFAULT_QUESTIONS = [
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Trinity School Examinations. This is the Music Listening and Appraising examination. This sound file contains the extracts you will need to answer the questions',
+  opening: 'Trinity School Examinations. Music Listening and Appraising. This exam will last for 1 hour and 30 minutes.',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
   betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
@@ -212,7 +212,32 @@ function extractSpotifyId(url, kind) {
   return null;
 }
 
-function spotifyAuthUrl(clientId, redirectUri) {
+// ===== Spotify PKCE OAuth =====
+// Generate cryptographically random string for PKCE verifier
+function generateRandomString(length) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const arr = new Uint8Array(length);
+  window.crypto.getRandomValues(arr);
+  return Array.from(arr).map(x => possible[x % possible.length]).join('');
+}
+
+// SHA256 hash + base64url-encode (for PKCE challenge)
+async function sha256Base64Url(input) {
+  const data = new TextEncoder().encode(input);
+  const hash = await window.crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(hash);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function startSpotifyPkceFlow(clientId, redirectUri) {
+  const verifier = generateRandomString(64);
+  const challenge = await sha256Base64Url(verifier);
+  sessionStorage.setItem('aural_spotify_pkce_verifier', verifier);
+  sessionStorage.setItem('aural_spotify_pkce_client_id', clientId);
+  sessionStorage.setItem('aural_spotify_pkce_redirect', redirectUri);
+
   const scopes = [
     'streaming',
     'user-read-email',
@@ -222,25 +247,85 @@ function spotifyAuthUrl(clientId, redirectUri) {
     'playlist-read-private',
     'playlist-read-collaborative',
   ].join(' ');
+
   const params = new URLSearchParams({
     client_id: clientId,
-    response_type: 'token',
+    response_type: 'code',
     redirect_uri: redirectUri,
     scope: scopes,
-    show_dialog: 'false',
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
   });
-  return `https://accounts.spotify.com/authorize?${params.toString()}`;
+  window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
-function parseSpotifyHashToken() {
-  if (!window.location.hash) return null;
-  const params = new URLSearchParams(window.location.hash.slice(1));
-  const token = params.get('access_token');
-  if (!token) return null;
-  const expiresIn = parseInt(params.get('expires_in') || '3600', 10);
-  // Clean the URL
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  return { token, expiresAt: Date.now() + expiresIn * 1000 };
+// Exchange the code returned by Spotify for an access token
+async function exchangeSpotifyCode(code) {
+  const verifier = sessionStorage.getItem('aural_spotify_pkce_verifier');
+  const clientId = sessionStorage.getItem('aural_spotify_pkce_client_id');
+  const redirectUri = sessionStorage.getItem('aural_spotify_pkce_redirect');
+  if (!verifier || !clientId || !redirectUri) {
+    throw new Error('PKCE state missing (sessionStorage cleared?). Please reconnect.');
+  }
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+    client_id: clientId,
+    code_verifier: verifier,
+  });
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Token exchange failed (${res.status}): ${t.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  // Clean up sessionStorage
+  sessionStorage.removeItem('aural_spotify_pkce_verifier');
+  return {
+    token: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
+    clientId,
+  };
+}
+
+// Check the current URL for a Spotify auth code (after redirect)
+function getSpotifyAuthCodeFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  if (!code && !error) return null;
+  // Clean the URL to remove the code/error params
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (error) return { error };
+  return { code };
+}
+
+// Refresh an expired token using its refresh token
+async function refreshSpotifyToken(refreshToken, clientId) {
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: clientId,
+  });
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
+  const data = await res.json();
+  return {
+    token: data.access_token,
+    refreshToken: data.refresh_token || refreshToken,
+    expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
+    clientId,
+  };
 }
 
 let spotifySdkPromise = null;
@@ -273,7 +358,7 @@ function loadYouTubeAPI() {
 export default function App() {
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [readingTime, setReadingTime] = useState(0);
-  const [examTitle, setExamTitle] = useState('Enter you Exam Title here');
+  const [examTitle, setExamTitle] = useState('Enter the name of your exam');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -326,13 +411,25 @@ export default function App() {
   const spotifyPlayerRef = useRef(null);
   const spotifyPreviewBufferCache = useRef(new Map()); // url -> AudioBuffer
 
-  // Capture Spotify OAuth callback on mount
+  // Capture Spotify OAuth callback on mount (PKCE code → token exchange)
   useEffect(() => {
-    const tok = parseSpotifyHashToken();
-    if (tok) {
-      setSpotifyToken(tok);
-      localStorage.setItem('aural_spotify_token', JSON.stringify(tok));
+    const callback = getSpotifyAuthCodeFromUrl();
+    if (!callback) return;
+    if (callback.error) {
+      alert(`Spotify authentication was cancelled: ${callback.error}`);
+      sessionStorage.removeItem('aural_spotify_pkce_verifier');
+      return;
     }
+    (async () => {
+      try {
+        const tok = await exchangeSpotifyCode(callback.code);
+        setSpotifyToken(tok);
+        localStorage.setItem('aural_spotify_token', JSON.stringify(tok));
+      } catch (err) {
+        console.error(err);
+        alert(`Could not complete Spotify connection: ${err.message}`);
+      }
+    })();
   }, []);
 
   // Persist client ID
@@ -446,14 +543,18 @@ export default function App() {
   };
 
   // ===== Spotify handlers =====
-  const spotifyConnect = () => {
+  const spotifyConnect = async () => {
     if (!spotifyClientId) {
       alert('Please enter your Spotify Client ID first (Voice & API → Spotify).');
       return;
     }
     const redirectUri = window.location.origin + window.location.pathname;
-    const authUrl = spotifyAuthUrl(spotifyClientId, redirectUri);
-    window.location.href = authUrl;
+    try {
+      await startSpotifyPkceFlow(spotifyClientId, redirectUri);
+      // Note: this navigates away, so code after this won't execute.
+    } catch (err) {
+      alert(`Could not start Spotify login: ${err.message}`);
+    }
   };
 
   const spotifyDisconnect = () => {
@@ -470,7 +571,31 @@ export default function App() {
 
   const spotifyFetch = async (url) => {
     if (!spotifyToken) throw new Error('Not connected to Spotify');
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${spotifyToken.token}` } });
+
+    // Pre-emptively refresh if within 60s of expiry
+    let tokenToUse = spotifyToken;
+    if (tokenToUse.refreshToken && tokenToUse.expiresAt && tokenToUse.expiresAt - Date.now() < 60_000) {
+      try {
+        const fresh = await refreshSpotifyToken(tokenToUse.refreshToken, tokenToUse.clientId);
+        setSpotifyToken(fresh);
+        localStorage.setItem('aural_spotify_token', JSON.stringify(fresh));
+        tokenToUse = fresh;
+      } catch (e) { console.warn('Token refresh failed:', e); }
+    }
+
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${tokenToUse.token}` } });
+    if (res.status === 401 && tokenToUse.refreshToken) {
+      // Retry once with a refreshed token
+      try {
+        const fresh = await refreshSpotifyToken(tokenToUse.refreshToken, tokenToUse.clientId);
+        setSpotifyToken(fresh);
+        localStorage.setItem('aural_spotify_token', JSON.stringify(fresh));
+        res = await fetch(url, { headers: { Authorization: `Bearer ${fresh.token}` } });
+      } catch (e) {
+        spotifyDisconnect();
+        throw new Error('Spotify session expired. Please reconnect.');
+      }
+    }
     if (res.status === 401) {
       spotifyDisconnect();
       throw new Error('Spotify session expired. Please reconnect.');

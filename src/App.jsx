@@ -2139,32 +2139,30 @@ export default function App() {
 
     return (
       <>
-        <div className="flex gap-1 mt-3">
+        <div className="flex gap-1.5 mt-3">
           <button onClick={() => { newBlankExam(); closeAfter?.(); }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-            style={{ background: 'transparent', borderRadius: '3px', color: 'var(--text-muted)' }}
+            className="btn btn-secondary btn-sm flex-1"
             title="Start a new blank exam">
-            <Plus size={11} /> New
+            <Plus size={12} /> New
           </button>
           <button onClick={() => { saveCurrentExam(); closeAfter?.(); }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
-            style={{ borderRadius: '3px' }}
+            className="btn btn-primary btn-sm flex-1"
             title={myProfile?.approved ? 'Save to cloud workspace' : 'Save to browser'}>
-            <Save size={11} /> Save
+            <Save size={12} /> Save
           </button>
         </div>
 
         {cloudExamsLoading && (
-          <div className="mt-3 text-xs flex items-center gap-2 px-2" style={{ color: 'var(--text-dim)' }}>
-            <Loader2 size={10} className="animate-spin" /> Syncing workspace...
+          <div className="mt-3 flex items-center gap-2 px-1" style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+            <Loader2 size={10} className="animate-spin" /> Syncing workspace…
           </div>
         )}
 
-        <div className="mt-4 space-y-1 max-h-[60vh] overflow-y-auto">
+        <div className="mt-4 space-y-0.5 max-h-[60vh] overflow-y-auto" style={{ marginLeft: '-4px', marginRight: '-4px', paddingLeft: '4px', paddingRight: '4px' }}>
           {allEntries.length === 0 ? (
-            <div className="text-xs px-2 py-4 text-center" style={{ lineHeight: 1.5, color: 'var(--text-dim)' }}>
-              No saved exams yet.<br />
-              Click <strong>Save</strong> to store the current setup.
+            <div className="py-6 text-center" style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--text-dim)' }}>
+              <div style={{ marginBottom: '4px' }}>No saved exams yet</div>
+              <div style={{ color: 'var(--text-faint)' }}>Click <strong style={{ color: 'var(--text-muted)' }}>Save</strong> above to store this setup.</div>
             </div>
           ) : (
             allEntries.map(entry => (
@@ -2181,7 +2179,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="mt-4 pt-4 text-xs px-2" style={{ borderTop: '1px dashed var(--border)', lineHeight: 1.5, color: 'var(--text-dim)' }}>
+        <div className="mt-4 pt-4 px-1" style={{ borderTop: '0.5px solid var(--border)', fontSize: '11px', lineHeight: 1.5, color: 'var(--text-dim)' }}>
           {myProfile?.approved
             ? 'Cloud-saved exams are accessible from any device. Local exams (LOCAL badge) stay in this browser.'
             : 'Exams are saved in your browser only until your account is approved.'}
@@ -2199,40 +2197,73 @@ export default function App() {
       body { margin: 0; background: var(--bg-base); }
 
       :root, [data-theme="dark"] {
-        --bg-base: #0b0b0f;
-        --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%);
+        /* Base — softer charcoal, not pure black. Reads as premium, not gaming. */
+        --bg-base: #0e0e13;
+        --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0e0e13 60%);
         --bg-image-auth: url('/bg/auth-dark.webp');
         --bg-image-main: url('/bg/main-dark.webp');
-        --bg-overlay: linear-gradient(180deg, rgba(11,11,15,0.55) 0%, rgba(11,11,15,0.7) 100%);
-        --surface: rgba(255,255,255,0.03);
-        --surface-solid: #16161d;
-        --surface-2: rgba(255,255,255,0.02);
-        --surface-elev: rgba(255,255,255,0.06);
-        --border: rgba(255,255,255,0.08);
-        --border-strong: rgba(255,255,255,0.14);
-        --text: #f0f0f3;
-        --text-muted: #8a8a96;
-        --text-dim: #5b5b65;
-        --text-faint: #4f4f57;
-        --accent: #6366f1;
-        --accent-soft: #818cf8;
+        --bg-overlay: linear-gradient(180deg, rgba(14,14,19,0.62) 0%, rgba(14,14,19,0.78) 100%);
+
+        /* Surfaces — layered, all slightly translucent so content feels lifted */
+        --surface: rgba(255,255,255,0.025);
+        --surface-2: rgba(255,255,255,0.015);
+        --surface-elev: rgba(255,255,255,0.05);
+        --surface-solid: #1a1a22;
+        --surface-solid-2: #15151c;
+
+        /* Borders — quieter than before, two levels only */
+        --border: rgba(255,255,255,0.06);
+        --border-strong: rgba(255,255,255,0.12);
+
+        /* Text — refined four-level hierarchy */
+        --text: #ececf1;
+        --text-muted: #9a9aa6;
+        --text-dim: #6b6b75;
+        --text-faint: #4a4a52;
+
+        /* Accent — purple/indigo. Used sparingly. */
+        --accent: #7c7df0;
+        --accent-soft: #9ea0f5;
+        --accent-strong: #6366f1;
         --accent-bg-on: #ffffff;
-        --accent-tint: rgba(99,102,241,0.08);
-        --accent-tint-strong: rgba(99,102,241,0.18);
-        --accent-border: rgba(99,102,241,0.25);
-        --accent-glow: rgba(99,102,241,0.15);
+        --accent-tint: rgba(124,125,240,0.08);
+        --accent-tint-strong: rgba(124,125,240,0.14);
+        --accent-border: rgba(124,125,240,0.22);
+        --accent-glow: rgba(124,125,240,0.18);
         --accent2: #22d3ee;
-        --accent2-tint: rgba(34,211,238,0.15);
-        --header-bg: rgba(255,255,255,0.02);
-        --input-bg: rgba(255,255,255,0.03);
-        --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.08);
+        --accent2-tint: rgba(34,211,238,0.12);
+
+        /* Semantic colours */
+        --success: #4ade80;
+        --success-soft: #86efac;
+        --success-tint: rgba(74,222,128,0.08);
+        --warning: #fbbf24;
+        --warning-tint: rgba(251,191,36,0.08);
+        --danger: #f87171;
+        --danger-tint: rgba(248,113,113,0.08);
+
+        --header-bg: rgba(14,14,19,0.7);
+        --input-bg: rgba(255,255,255,0.025);
+        --input-bg-focus: rgba(255,255,255,0.04);
+
+        /* Elevations */
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+        --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 3px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.35);
+        --shadow-lg: 0 4px 8px rgba(0,0,0,0.3), 0 24px 48px rgba(0,0,0,0.45);
         --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3);
+
+        /* Spacing scale — multiples of 4 */
+        --r-sm: 6px;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-xl: 16px;
+
         --ink: #2a2520;
         --waveform-bg: rgba(0,0,0,0.25);
         --code-bg: #0a0a0e;
         --code-text: #d5d5dc;
-        --scrollbar: rgba(255,255,255,0.1);
-        --scrollbar-hover: rgba(255,255,255,0.18);
+        --scrollbar: rgba(255,255,255,0.08);
+        --scrollbar-hover: rgba(255,255,255,0.15);
       }
 
       [data-theme="light"] {
@@ -2240,36 +2271,61 @@ export default function App() {
         --bg-gradient: radial-gradient(ellipse 1400px 900px at top left, #e8e4f5 0%, #f0eef0 50%, #ebe9eb 100%);
         --bg-image-auth: url('/bg/auth-light.webp');
         --bg-image-main: url('/bg/main-light.webp');
-        --bg-overlay: linear-gradient(180deg, rgba(240,238,240,0.6) 0%, rgba(240,238,240,0.75) 100%);
+        --bg-overlay: linear-gradient(180deg, rgba(240,238,240,0.55) 0%, rgba(240,238,240,0.7) 100%);
+
         --surface: #ffffff;
+        --surface-2: #fafaf9;
+        --surface-elev: rgba(0,0,0,0.035);
         --surface-solid: #ffffff;
-        --surface-2: #f5f5f3;
-        --surface-elev: rgba(0,0,0,0.04);
-        --border: rgba(0,0,0,0.12);
-        --border-strong: rgba(0,0,0,0.22);
-        --text: #18181b;
-        --text-muted: #5f5f64;
-        --text-dim: #8b8b91;
-        --text-faint: #b9b9bd;
-        --accent: #4f46e5;
+        --surface-solid-2: #fafaf9;
+
+        --border: rgba(0,0,0,0.08);
+        --border-strong: rgba(0,0,0,0.16);
+
+        --text: #1a1a1f;
+        --text-muted: #58585e;
+        --text-dim: #8e8e94;
+        --text-faint: #b0b0b5;
+
+        --accent: #5b5cd6;
         --accent-soft: #6366f1;
+        --accent-strong: #4f46e5;
         --accent-bg-on: #ffffff;
-        --accent-tint: rgba(79,70,229,0.06);
-        --accent-tint-strong: rgba(79,70,229,0.12);
-        --accent-border: rgba(79,70,229,0.3);
-        --accent-glow: rgba(79,70,229,0.15);
+        --accent-tint: rgba(91,92,214,0.06);
+        --accent-tint-strong: rgba(91,92,214,0.12);
+        --accent-border: rgba(91,92,214,0.28);
+        --accent-glow: rgba(91,92,214,0.15);
         --accent2: #0891b2;
-        --accent2-tint: rgba(8,145,178,0.1);
-        --header-bg: rgba(255,255,255,0.7);
+        --accent2-tint: rgba(8,145,178,0.08);
+
+        --success: #16a34a;
+        --success-soft: #22c55e;
+        --success-tint: rgba(22,163,74,0.06);
+        --warning: #d97706;
+        --warning-tint: rgba(217,119,6,0.06);
+        --danger: #dc2626;
+        --danger-tint: rgba(220,38,38,0.06);
+
+        --header-bg: rgba(255,255,255,0.85);
         --input-bg: #ffffff;
-        --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.08);
+        --input-bg-focus: #ffffff;
+
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+        --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05), 0 16px 40px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.06);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.1);
         --logo-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(79,70,229,0.25);
+
+        --r-sm: 6px;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-xl: 16px;
+
         --ink: #f0f0f3;
-        --waveform-bg: rgba(0,0,0,0.04);
+        --waveform-bg: rgba(0,0,0,0.03);
         --code-bg: #1a1a1f;
         --code-text: #f0f0f3;
-        --scrollbar: rgba(0,0,0,0.12);
-        --scrollbar-hover: rgba(0,0,0,0.2);
+        --scrollbar: rgba(0,0,0,0.1);
+        --scrollbar-hover: rgba(0,0,0,0.18);
       }
 
       .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
@@ -2292,50 +2348,204 @@ export default function App() {
       }
 
       .accent { color: var(--accent-soft); }
-      .accent-bg { background: var(--accent); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
+      .accent-bg { background: var(--accent-strong); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
       .accent2 { color: var(--accent2); }
 
-      .paper { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%); }
+      /* Button hierarchy ------------------------------------------------ */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-family: 'Geist', system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1;
+        padding: 9px 14px;
+        border-radius: var(--r-md);
+        border: 0.5px solid transparent;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;
+        white-space: nowrap;
+      }
+      .btn:active:not(:disabled) { transform: translateY(0.5px); }
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-glow);
+      }
+      .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .btn-primary {
+        background: var(--accent-strong);
+        color: var(--accent-bg-on);
+        font-weight: 600;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 1px 2px rgba(0,0,0,0.1);
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--accent);
+        box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 2px 6px rgba(99,102,241,0.3);
+      }
+
+      .btn-secondary {
+        background: var(--surface-elev);
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: var(--surface-elev);
+        border-color: var(--border-strong);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-muted);
+      }
+      .btn-ghost:hover:not(:disabled) {
+        background: var(--surface-elev);
+        color: var(--text);
+      }
+
+      .btn-danger-ghost {
+        background: transparent;
+        color: var(--text-muted);
+      }
+      .btn-danger-ghost:hover:not(:disabled) {
+        background: var(--danger-tint);
+        color: var(--danger);
+      }
+
+      .btn-icon { padding: 8px; gap: 0; }
+      .btn-sm { padding: 6px 10px; font-size: 12px; }
+      .btn-icon.btn-sm { padding: 6px; }
+
+      /* Surfaces --------------------------------------------------------- */
+      .paper { background: var(--surface); }
+      .paper-elev { background: var(--surface-2); }
       .hairline { border: 0.5px solid var(--border); }
       .ink-shadow { box-shadow: var(--shadow-card); }
+
+      /* Card — standard container */
+      .card {
+        background: var(--surface);
+        border: 0.5px solid var(--border);
+        border-radius: var(--r-lg);
+      }
+      .card-elev {
+        background: var(--surface);
+        border: 0.5px solid var(--border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+      }
+
+      /* Pills & badges --------------------------------------------------- */
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--surface-elev);
+        color: var(--text-muted);
+        border: 0.5px solid var(--border);
+      }
+      .pill-accent { background: var(--accent-tint); color: var(--accent-soft); border-color: var(--accent-border); }
+      .pill-success { background: var(--success-tint); color: var(--success); border-color: rgba(74,222,128,0.2); }
+      .pill-warning { background: var(--warning-tint); color: var(--warning); border-color: rgba(251,191,36,0.2); }
+      .pill-muted { background: transparent; color: var(--text-dim); border-color: var(--border); }
+
+      /* Section label — replaces uppercase tracking-wider noise */
+      .section-label {
+        font-family: 'Geist', system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-dim);
+        letter-spacing: 0.02em;
+      }
+      .field-label {
+        font-family: 'Geist', system-ui, sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 6px;
+      }
 
       input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
         background: var(--input-bg);
         border: 0.5px solid var(--border);
-        padding: 7px 11px;
+        padding: 8px 12px;
         font-family: inherit;
         color: var(--text);
-        border-radius: 6px;
-        transition: all 0.15s;
+        border-radius: var(--r-md);
+        transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
         font-size: 14px;
+      }
+      input:hover:not(:disabled):not(:focus), textarea:hover:not(:disabled):not(:focus), select:hover:not(:disabled):not(:focus) {
+        border-color: var(--border-strong);
       }
       input:focus, textarea:focus, select:focus {
         outline: none;
-        border-color: var(--accent);
+        background: var(--input-bg-focus);
+        border-color: var(--accent-border);
         box-shadow: 0 0 0 3px var(--accent-glow);
       }
-      input::placeholder, textarea::placeholder { color: var(--text-dim); }
+      input::placeholder, textarea::placeholder { color: var(--text-faint); }
 
+      button:focus-visible:not(.btn) {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-glow);
+      }
       button { transition: all 0.15s; cursor: pointer; }
       button:disabled { opacity: 0.4; cursor: not-allowed; }
 
       .question-card {
-        transition: all 0.2s;
-        background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+        transition: border-color 0.15s, box-shadow 0.15s;
+        background: var(--surface);
         border: 0.5px solid var(--border);
+        border-radius: var(--r-lg);
+        position: relative;
       }
       .question-card:hover {
         border-color: var(--border-strong);
-        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+      .question-card.missing-audio::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 16px;
+        bottom: 16px;
+        width: 2px;
+        background: var(--warning);
+        border-radius: 0 2px 2px 0;
+        opacity: 0.7;
+      }
+      .question-card.has-audio::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 16px;
+        bottom: 16px;
+        width: 2px;
+        background: var(--accent-strong);
+        border-radius: 0 2px 2px 0;
+        opacity: 0.5;
       }
 
       .drop-zone {
         background: var(--surface-2);
         border: 1px dashed var(--border-strong);
+        border-radius: var(--r-md);
         transition: all 0.15s;
       }
+      .drop-zone:hover {
+        background: var(--surface-elev);
+        border-color: var(--accent-border);
+      }
       .drop-zone.has-source {
-        background: linear-gradient(180deg, var(--accent-tint) 0%, var(--accent-tint) 100%);
+        background: var(--accent-tint);
         border: 0.5px solid var(--accent-border);
         border-style: solid;
       }
@@ -2350,14 +2560,23 @@ export default function App() {
       .tab {
         padding: 6px 12px;
         border: 0.5px solid var(--border);
-        background: var(--surface-2);
+        background: var(--surface-elev);
         color: var(--text-muted);
-        border-radius: 6px;
+        border-radius: var(--r-md);
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.15s;
+        cursor: pointer;
+      }
+      .tab:hover:not(.active):not(:disabled) {
+        background: var(--surface-elev);
+        color: var(--text);
+        border-color: var(--border-strong);
       }
       .tab.active {
-        background: var(--accent);
+        background: var(--accent-strong);
         color: var(--accent-bg-on);
-        border-color: var(--accent);
+        border-color: var(--accent-strong);
         box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
       }
 
@@ -2478,74 +2697,64 @@ export default function App() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileDrawerOpen(true)}
-              className="show-mobile-only p-2 hairline"
-              style={{ background: 'var(--surface-2)', borderRadius: '8px', color: 'var(--text-muted)' }}
+              className="show-mobile-only btn btn-ghost btn-icon"
               aria-label="Open sidebar">
               <Menu size={18} />
             </button>
             <div style={{
-              width: '34px', height: '34px',
-              background: 'linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%)',
-              borderRadius: '8px',
+              width: '32px', height: '32px',
+              background: 'linear-gradient(135deg, var(--accent-strong) 0%, #4338ca 100%)',
+              borderRadius: 'var(--r-md)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: 'var(--logo-shadow)',
               flexShrink: 0,
             }}>
-              <Music size={18} color="#ffffff" strokeWidth={2.2} />
+              <Music size={16} color="#ffffff" strokeWidth={2.2} />
             </div>
             <div className="min-w-0">
-              <h1 className="display-font text-base font-semibold leading-none mb-1 truncate">Aural Composer</h1>
-              <div className="mono-font text-xs leading-none hide-mobile" style={{ color: 'var(--text-dim)' }}>music exam audio · v1.0</div>
+              <h1 className="display-font font-semibold leading-tight truncate" style={{ fontSize: '15px', letterSpacing: '-0.01em' }}>Aural Composer</h1>
+              <div className="hide-mobile" style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>Listening exam composer</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button onClick={() => setShowHelpPanel(true)}
-              className="p-2 hairline"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              className="btn btn-ghost btn-icon"
               title="Help & how-to guide"
               aria-label="Help">
-              <HelpCircle size={14} />
+              <HelpCircle size={15} />
             </button>
             {myProfile?.is_admin && (
               <button onClick={() => setShowAdminPanel(true)}
-                className="p-2 hairline"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+                className="btn btn-ghost btn-icon"
                 title="Manage users (admin only)"
                 aria-label="Admin panel">
-                <Users size={14} />
+                <Users size={15} />
               </button>
             )}
             <button onClick={toggleTheme}
-              className="p-2 hairline"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              className="btn btn-ghost btn-icon"
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-label="Toggle theme">
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
             <button onClick={() => setShowSettings(!showSettings)}
-              className="flex items-center gap-2 px-3 py-2 hairline"
-              style={{
-                background: showSettings ? 'var(--accent-tint-strong)' : 'var(--surface-2)',
-                borderColor: showSettings ? 'var(--accent-border)' : undefined,
-                color: showSettings ? '#a5b4fc' : 'var(--text-muted)',
-                borderRadius: '8px',
-              }}>
+              className={showSettings ? "btn btn-secondary" : "btn btn-ghost"}
+              style={showSettings ? { background: 'var(--accent-tint-strong)', color: 'var(--accent-soft)', borderColor: 'var(--accent-border)' } : undefined}>
               <Settings size={14} />
-              <span className="text-xs font-medium hide-mobile">Voice & API</span>
+              <span className="hide-mobile">Voice & API</span>
             </button>
             <button onClick={signOut}
-              className="p-2 hairline"
-              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              className="btn btn-ghost btn-icon"
               title={`Signed in as ${myProfile?.email || session?.user?.email || ''} — click to sign out`}
               aria-label="Sign out">
-              <LogOut size={14} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
       </header>
 
       {showSettings && (
-        <div className="paper hairline" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ background: 'var(--surface-2)', borderBottom: '0.5px solid var(--border)' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6">
             <div className="mb-4">
               <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2">TTS Provider</div>
@@ -2687,19 +2896,21 @@ export default function App() {
       <div className="flex max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
         {/* Sidebar (desktop) */}
         <aside className="hide-mobile" style={{
-          width: sidebarOpen ? '240px' : '48px',
+          width: sidebarOpen ? '256px' : '48px',
           flexShrink: 0,
           borderRight: '0.5px solid var(--border)',
           transition: 'width 0.2s ease',
-          background: 'var(--surface-2)',
         }}>
-          <div className="sticky top-0 p-3">
+          <div className="sticky top-0" style={{ padding: '16px 12px' }}>
             <button onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="w-full flex items-center justify-center gap-2 p-2 hairline mono-font text-xs uppercase tracking-wider opacity-70 hover:opacity-100"
-              style={{ background: 'transparent', borderRadius: '4px', color: 'var(--text-muted)' }}
+              className="w-full btn btn-ghost btn-sm"
+              style={{ justifyContent: sidebarOpen ? 'space-between' : 'center' }}
               title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
-              <ListMusic size={14} />
-              {sidebarOpen && <span>Saved Exams</span>}
+              <span className="flex items-center gap-2">
+                <ListMusic size={13} />
+                {sidebarOpen && <span style={{ fontWeight: 500 }}>Saved exams</span>}
+              </span>
+              {sidebarOpen && <ChevronRight size={12} style={{ transform: 'rotate(180deg)', color: 'var(--text-dim)' }} />}
             </button>
             {sidebarOpen && renderSidebarBody(null)}
           </div>
@@ -2710,14 +2921,13 @@ export default function App() {
           <>
             <div className="drawer-overlay" onClick={() => setMobileDrawerOpen(false)} />
             <div className="drawer-panel">
-              <div className="p-3">
+              <div style={{ padding: '16px 12px' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="mono-font text-xs uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-                    <ListMusic size={14} /> Saved Exams
+                  <div className="flex items-center gap-2" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>
+                    <ListMusic size={14} /> Saved exams
                   </div>
                   <button onClick={() => setMobileDrawerOpen(false)}
-                    className="p-1.5 hairline"
-                    style={{ background: 'var(--surface-2)', borderRadius: '6px', color: 'var(--text-muted)' }}
+                    className="btn btn-ghost btn-icon btn-sm"
                     aria-label="Close drawer">
                     <X size={14} />
                   </button>
@@ -2733,108 +2943,126 @@ export default function App() {
 
         {/* Quick start strip - dismissible */}
         {showQuickStart && (
-          <div className="mb-6 hairline flex items-center gap-3 p-3" style={{
-            background: 'var(--accent-tint)',
-            borderColor: 'var(--accent-border)',
-            borderRadius: '8px',
+          <div className="mb-6 card flex items-center gap-3" style={{
+            padding: '12px 16px',
+            background: 'var(--surface-2)',
           }}>
-            <Sparkles size={14} className="accent flex-shrink-0" />
-            <div className="flex-1 text-xs sm:text-sm" style={{ lineHeight: 1.5 }}>
-              <strong>Quick start:</strong> drop an exam paper PDF below (or edit the default extracts) → add audio to each extract → preview the full exam → compile to MP3.
-              {' '}
-              <button onClick={() => setShowHelpPanel(true)} className="accent underline" style={{ background: 'transparent', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
-                Full guide →
+            <div style={{
+              width: '28px', height: '28px',
+              background: 'var(--accent-tint-strong)',
+              border: '0.5px solid var(--accent-border)',
+              borderRadius: 'var(--r-md)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Sparkles size={13} className="accent" />
+            </div>
+            <div className="flex-1" style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Drop an exam PDF below, add audio to each extract, preview, then compile.{' '}
+              <button onClick={() => setShowHelpPanel(true)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--accent-soft)', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>
+                Full guide
               </button>
             </div>
             <button onClick={dismissQuickStart}
-              className="p-1 opacity-50 hover:opacity-100 flex-shrink-0"
-              style={{ background: 'transparent', borderRadius: '4px', color: 'var(--text-muted)' }}
-              title="Dismiss this tip">
+              className="btn btn-ghost btn-icon btn-sm"
+              title="Dismiss"
+              aria-label="Dismiss quick start tip">
               <X size={12} />
             </button>
           </div>
         )}
 
         {/* PDF + Save/Load toolbar */}
-        <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px', padding: '20px' }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="mb-8 card-elev" style={{ padding: '20px' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* PDF upload */}
             <div>
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Start from a paper</div>
+              <div className="section-label mb-2">Start from a paper</div>
               <PdfDropZone onFile={handleExamPdfDrop} parsing={pdfParsing} disabled={isCompiling || livePlaying} />
               {pdfDetectionInfo && (
-                <div className="mt-2 text-xs flex items-center gap-1.5" style={{ color: '#1db954' }}>
+                <div className="mt-2 flex items-center gap-1.5" style={{ fontSize: '12px', color: 'var(--success)' }}>
                   <Check size={12} /> Loaded {pdfDetectionInfo.count} extracts
-                  {pdfDetectionInfo.marksFound && ' with marks'} from PDF.
+                  {pdfDetectionInfo.marksFound && ' with marks'}
                 </div>
               )}
             </div>
 
             {/* Save / Load */}
             <div>
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Or resume a saved exam</div>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={saveExamConfig}
-                  className="flex items-center gap-1.5 px-3 py-2 hairline mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'transparent' }}>
+              <div className="section-label mb-2">Or resume a saved exam</div>
+              <div className="flex gap-1.5 flex-wrap">
+                <button onClick={saveExamConfig} className="btn btn-secondary btn-sm">
                   <Save size={12} /> Save config
                 </button>
-                <label className="flex items-center gap-1.5 px-3 py-2 hairline mono-font text-xs uppercase tracking-wider cursor-pointer"
-                  style={{ background: 'transparent' }}>
+                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
                   <FolderOpen size={12} /> Load config
                   <input type="file" accept=".json,application/json" className="hidden"
                     onChange={e => { loadExamConfig(e.target.files[0]); e.target.value = ''; }} />
                 </label>
-                <button onClick={shareAsUrl}
-                  className="flex items-center gap-1.5 px-3 py-2 hairline mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'transparent' }}
+                <button onClick={shareAsUrl} className="btn btn-secondary btn-sm"
                   title="Copy a share link that loads this exam (audio files not included)">
                   <Link2 size={12} /> Share link
                 </button>
               </div>
-              <div className="mt-2 text-xs opacity-60">
-                Saves all settings except uploaded audio files (those need to be re-uploaded). YouTube and Spotify clips are saved with their URLs and timestamps.
+              <div className="mt-2" style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                Saves all settings except uploaded audio (which need to be re-uploaded). YouTube and Spotify clips are saved with their URLs and timestamps.
               </div>
             </div>
           </div>
         </section>
 
         <section className="mb-10">
-          <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Examination</div>
+          <div className="section-label mb-3">Exam</div>
           <input type="text" value={examTitle} onChange={e => setExamTitle(e.target.value)}
-            className="display-font w-full bg-transparent border-none text-3xl font-semibold p-0"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }} />
+            placeholder="Untitled exam"
+            className="display-font w-full bg-transparent border-none p-0"
+            style={{
+              fontSize: '28px',
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              color: 'var(--text)',
+              paddingBottom: '8px',
+              borderBottom: '0.5px solid var(--border)',
+            }} />
 
-          <div className="flex flex-wrap gap-8 mt-6 mono-font text-xs uppercase tracking-wider">
-            <div><div className="opacity-60 mb-1">Extracts</div><div className="text-lg accent font-semibold">{questions.length}</div></div>
-            <div><div className="opacity-60 mb-1">Sources loaded</div><div className="text-lg font-semibold">{filledCount} / {questions.length}</div></div>
-            {totalMarks > 0 && (
-              <div><div className="opacity-60 mb-1">Total marks</div><div className="text-lg font-semibold flex items-center gap-1.5"><Award size={14} className="accent" /> {totalMarks}</div></div>
-            )}
-            {youtubeCount > 0 && (
-              <div><div className="opacity-60 mb-1">YouTube clips</div><div className="text-lg font-semibold flex items-center gap-1.5"><Youtube size={14} className="accent" /> {youtubeCount}</div></div>
-            )}
-            {spotifyCount > 0 && (
-              <div><div className="opacity-60 mb-1">Spotify clips</div><div className="text-lg font-semibold flex items-center gap-1.5"><Music size={14} style={{ color: '#1db954' }} /> {spotifyCount}</div></div>
-            )}
-            <div><div className="opacity-60 mb-1">Total runtime</div><div className="text-lg font-semibold">{formatTime(totalDuration)}</div></div>
-            <div className="flex items-center gap-3">
-              <label className="opacity-60">Reading time (sec)</label>
-              <input type="number" value={readingTime} onChange={e => setReadingTime(Math.max(0, parseInt(e.target.value) || 0))} className="w-20 text-sm" />
+          {/* Compact stats dashboard */}
+          <div className="card mt-5" style={{ padding: '14px 18px' }}>
+            <div className="flex flex-wrap items-center" style={{ gap: '4px 28px' }}>
+              <StatCell label="Extracts" value={questions.length} />
+              <StatCell label="Audio loaded" value={`${filledCount} of ${questions.length}`} accent={filledCount === questions.length && questions.length > 0} />
+              {totalMarks > 0 && <StatCell label="Marks" value={totalMarks} icon={<Award size={11} />} />}
+              <StatCell label="Runtime" value={formatTime(totalDuration)} />
+              {youtubeCount > 0 && <StatCell label="YouTube" value={youtubeCount} icon={<Youtube size={11} />} />}
+              {spotifyCount > 0 && <StatCell label="Spotify" value={spotifyCount} icon={<Music size={11} />} />}
+              <div className="flex items-center gap-2 ml-auto" style={{ paddingLeft: '12px', borderLeft: '0.5px solid var(--border)' }}>
+                <label className="section-label" style={{ marginBottom: 0 }}>Reading time</label>
+                <input type="number" value={readingTime} onChange={e => setReadingTime(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="text-sm" style={{ width: '64px', padding: '4px 8px', fontSize: '13px' }} />
+                <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>sec</span>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px' }}>
+        <section className="mb-8 card-elev">
           <button onClick={() => setShowScript(!showScript)}
-            className="w-full flex items-center justify-between p-5"
-            style={{ background: 'transparent', borderBottom: showScript ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+            className="w-full flex items-center justify-between"
+            style={{
+              background: 'transparent',
+              borderBottom: showScript ? '0.5px solid var(--border)' : 'none',
+              padding: '16px 20px',
+              border: 'none',
+              borderRadius: showScript ? 0 : 'var(--r-lg)',
+              cursor: 'pointer',
+            }}>
             <div className="text-left">
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-1">Optional</div>
-              <h2 className="display-font text-xl font-semibold">Announcement script</h2>
+              <div className="section-label mb-1">Optional</div>
+              <h2 className="display-font font-semibold" style={{ fontSize: '17px', letterSpacing: '-0.01em' }}>Announcement script</h2>
             </div>
-            <div className="mono-font text-xs uppercase tracking-wider opacity-60">
-              {showScript ? '− Hide' : '+ Edit wording'}
+            <div className="flex items-center gap-1.5" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              <span>{showScript ? 'Hide' : 'Customise'}</span>
+              <ChevronDown size={14} style={{ transform: showScript ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
             </div>
           </button>
 
@@ -2931,8 +3159,8 @@ export default function App() {
 
         <section>
           <div className="flex items-baseline justify-between mb-4">
-            <h2 className="display-font text-xl font-semibold">Extracts</h2>
-            <div className="mono-font text-xs uppercase tracking-wider opacity-60">File · YouTube · Spotify</div>
+            <h2 className="display-font font-semibold" style={{ fontSize: '17px', letterSpacing: '-0.01em' }}>Extracts</h2>
+            <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>File · YouTube · Spotify</div>
           </div>
 
           <div className="space-y-3">
@@ -2952,8 +3180,13 @@ export default function App() {
             ))}
 
             <button onClick={() => addQuestion()} disabled={isCompiling || livePlaying}
-              className="w-full flex items-center justify-center gap-2 py-4 hairline mono-font text-xs uppercase tracking-wider opacity-60 hover:opacity-100"
-              style={{ background: 'transparent', borderStyle: 'dashed', borderRadius: '3px' }}>
+              className="w-full btn btn-ghost"
+              style={{
+                padding: '14px',
+                border: '0.5px dashed var(--border-strong)',
+                borderRadius: 'var(--r-lg)',
+                color: 'var(--text-muted)',
+              }}>
               <Plus size={14} /> Add extract
             </button>
           </div>
@@ -2982,85 +3215,108 @@ export default function App() {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             {!livePlaying ? (
               <button onClick={playLiveFull} disabled={isCompiling || filledCount === 0}
-                className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
-                style={{ background: 'transparent' }}>
-                <Play size={16} /> Preview full exam (live)
+                className="btn btn-secondary">
+                <Play size={14} /> Preview full exam (live)
               </button>
             ) : (
-              <div className="flex items-stretch hairline" style={{ borderRadius: '2px', overflow: 'hidden' }}>
+              <div className="flex items-stretch" style={{
+                border: '0.5px solid var(--border)',
+                borderRadius: 'var(--r-md)',
+                overflow: 'hidden',
+              }}>
                 <button onClick={skipToPrevExtract}
-                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  className="flex items-center justify-center px-3"
+                  style={{ background: 'var(--surface-elev)', borderRight: '0.5px solid var(--border)', color: 'var(--text)', border: 'none', cursor: 'pointer' }}
                   title="Jump to previous extract">
                   <SkipBack size={14} />
                 </button>
                 <button onClick={livePaused ? resumeLive : pauseLive}
-                  className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider font-semibold"
-                  style={{ background: livePaused ? 'var(--accent)' : 'var(--surface)', color: livePaused ? 'var(--surface)' : 'var(--text)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  className="flex items-center gap-1.5 px-4"
+                  style={{
+                    background: livePaused ? 'var(--accent-strong)' : 'var(--surface-elev)',
+                    color: livePaused ? 'var(--accent-bg-on)' : 'var(--text)',
+                    borderRight: '0.5px solid var(--border)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
                   title={livePaused ? 'Resume' : 'Pause'}>
                   {livePaused ? <Play size={14} /> : <Pause size={14} />}
                   {livePaused ? 'Resume' : 'Pause'}
                 </button>
                 <button onClick={skipCurrentItem}
-                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  className="flex items-center justify-center px-3"
+                  style={{ background: 'var(--surface-elev)', borderRight: '0.5px solid var(--border)', color: 'var(--text)', border: 'none', cursor: 'pointer' }}
                   title="Skip current segment (announcement, silence, or audio)">
                   <ChevronsRight size={14} />
                 </button>
                 <button onClick={skipToNextExtract}
-                  className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  className="flex items-center justify-center px-3"
+                  style={{ background: 'var(--surface-elev)', borderRight: '0.5px solid var(--border)', color: 'var(--text)', border: 'none', cursor: 'pointer' }}
                   title="Jump to next extract">
                   <SkipForward size={14} />
                 </button>
                 <button onClick={playLiveFull}
-                  className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: 'var(--text)', color: 'var(--surface)' }}
+                  className="flex items-center gap-1.5 px-4"
+                  style={{ background: 'var(--danger-tint)', color: 'var(--danger)', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer' }}
                   title="Stop preview">
                   <Square size={12} /> Stop
                 </button>
               </div>
             )}
 
-            <div className="flex items-stretch hairline" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+            <div className="flex items-stretch" style={{
+              border: '0.5px solid var(--border)',
+              borderRadius: 'var(--r-md)',
+              overflow: 'hidden',
+            }}>
               <select value={outputFormat} onChange={e => setOutputFormat(e.target.value)}
                 disabled={isCompiling || filledCount === 0 || livePlaying}
-                className="mono-font text-xs uppercase tracking-wider"
                 style={{
-                  padding: '12px 8px 12px 14px',
+                  padding: '8px 28px 8px 12px',
                   border: 'none',
-                  background: 'var(--surface-2)',
-                  color: 'var(--text-muted)',
+                  background: 'var(--surface-elev)',
+                  color: 'var(--text)',
                   borderRight: '0.5px solid var(--border)',
                   borderRadius: 0,
                   appearance: 'none',
                   WebkitAppearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a8a96' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9aa6' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
                   backgroundRepeat: 'no-repeat',
                   backgroundPosition: 'right 10px center',
-                  paddingRight: '28px',
                 }}>
                 <option value="mp3">MP3</option>
                 <option value="wav">WAV</option>
                 <option value="ogg">OGG</option>
               </select>
               <button onClick={compileAudio} disabled={isCompiling || filledCount === 0 || livePlaying}
-                className="flex items-center gap-2 px-5 mono-font text-sm uppercase tracking-wider font-semibold accent-bg"
-                style={{ border: 'none', borderRadius: 0 }}>
-                <Download size={16} />
+                className="flex items-center gap-1.5 px-5"
+                style={{
+                  background: 'var(--accent-strong)',
+                  color: 'var(--accent-bg-on)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: 'none',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.18) inset',
+                  cursor: 'pointer',
+                }}>
+                <Download size={14} />
                 Compile
               </button>
             </div>
 
             {outputFormat === 'mp3' && (
-              <div className="flex items-center gap-2 mono-font text-xs">
-                <label style={{ color: 'var(--text-muted)' }}>Bitrate</label>
+              <div className="flex items-center gap-2">
+                <label style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Bitrate</label>
                 <select value={mp3Bitrate} onChange={e => setMp3Bitrate(parseInt(e.target.value, 10))}
                   disabled={isCompiling || livePlaying}
-                  style={{ padding: '6px 8px' }}>
+                  style={{ padding: '6px 8px', fontSize: '12px' }}>
                   <option value="128">128 kbps · smaller</option>
                   <option value="192">192 kbps · balanced</option>
                   <option value="256">256 kbps · high</option>
@@ -3070,12 +3326,10 @@ export default function App() {
             )}
 
             {finalAudioUrl && (
-              <button onClick={downloadFinal}
-                className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
-                style={{ background: 'var(--surface-2)', borderRadius: '8px' }}>
-                <FileAudio size={16} />
+              <button onClick={downloadFinal} className="btn btn-secondary">
+                <FileAudio size={14} />
                 Download {finalAudioFormat?.toUpperCase()} · {formatTime(finalAudioDuration)}
-                {finalAudioSize > 0 && <span style={{ color: 'var(--text-dim)' }}>· {formatFileSize(finalAudioSize)}</span>}
+                {finalAudioSize > 0 && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>· {formatFileSize(finalAudioSize)}</span>}
               </button>
             )}
           </div>
@@ -3166,8 +3420,8 @@ export default function App() {
           </div>
         </section>
 
-        <footer className="mt-16 pt-8 text-center mono-font text-xs uppercase tracking-widest opacity-40" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          Aural Composer · v1.0
+        <footer className="mt-16 pt-8 text-center" style={{ borderTop: '0.5px solid var(--border)', fontSize: '11px', color: 'var(--text-faint)' }}>
+          Aural Composer
         </footer>
         </main>
       </div>
@@ -3197,9 +3451,10 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
     ? `yt-dlp -x --audio-format mp3 --download-sections "*${q.source.startStr || formatTime(q.source.start)}-${q.source.endStr || formatTime(q.source.end)}" "${q.source.url}" -o "extract_${q.id}.%(ext)s"`
     : '';
 
+  const hasAudio = !!q.source;
+
   return (
-    <div className="question-card paper ink-shadow"
-      style={{ borderRadius: '3px' }}
+    <div className={`question-card ${hasAudio ? 'has-audio' : 'missing-audio'}`}
       draggable={!disabled}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/x-extract-index', String(index));
@@ -3221,95 +3476,130 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
         }
       }}>
       <div className="flex items-stretch">
-        <div className="flex flex-col items-center justify-center px-2 sm:px-4 py-5 gap-2" style={{ borderRight: '0.5px solid var(--border)', minWidth: '56px' }}>
-          <div className="opacity-30 cursor-grab" title="Drag to reorder">
+        {/* Left rail - number + handle */}
+        <div className="flex flex-col items-center gap-2" style={{
+          padding: '20px 10px 16px',
+          borderRight: '0.5px solid var(--border)',
+          minWidth: '52px',
+        }}>
+          <div className="cursor-grab" title="Drag to reorder" style={{ color: 'var(--text-faint)' }}>
             <GripVertical size={14} />
           </div>
-          <div className="mono-font text-xs uppercase tracking-widest opacity-40">No.</div>
-          <div className="display-font text-2xl font-semibold leading-none">{index + 1}</div>
+          <div className="display-font" style={{
+            fontSize: '22px',
+            fontWeight: 600,
+            lineHeight: 1,
+            color: 'var(--text)',
+            letterSpacing: '-0.02em',
+          }}>{index + 1}</div>
           {q.marks != null && (
-            <div className="mono-font text-xs opacity-60 mt-1 flex items-center gap-1">
-              <Award size={10} /> {q.marks}
+            <div className="flex items-center gap-0.5" style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+              <Award size={9} /> {q.marks}
             </div>
           )}
-          <div className="flex flex-col gap-0.5 mt-2 opacity-40">
+          <div className="flex flex-col gap-0 mt-1">
             <button onClick={onMoveUp} disabled={disabled || !onMoveUp} title="Move up"
-              className="p-0.5" style={{ background: 'transparent' }}>
-              <ChevronUp size={12} />
+              className="btn btn-ghost"
+              style={{ padding: '2px', minHeight: 0 }}>
+              <ChevronUp size={11} />
             </button>
             <button onClick={onMoveDown} disabled={disabled || !onMoveDown} title="Move down"
-              className="p-0.5" style={{ background: 'transparent' }}>
-              <ChevronDown size={12} />
+              className="btn btn-ghost"
+              style={{ padding: '2px', minHeight: 0 }}>
+              <ChevronDown size={11} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 p-5">
-          <div className="flex items-start justify-between gap-2 mb-3">
+        {/* Right content area */}
+        <div className="flex-1" style={{ padding: '20px 20px 16px', minWidth: 0 }}>
+          {/* Title row */}
+          <div className="flex items-center gap-2 mb-3">
             <input type="text" value={q.label} onChange={e => onUpdate(q.id, 'label', e.target.value)} disabled={disabled}
-              className="display-font text-xl font-semibold bg-transparent border-none p-0 w-full flex-1"
-              style={{ borderBottom: '1px dashed transparent' }}
+              placeholder={`Extract ${index + 1}`}
+              className="display-font bg-transparent border-none p-0 flex-1"
+              style={{
+                fontSize: '17px',
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                color: 'var(--text)',
+                borderBottom: '0.5px solid transparent',
+                minWidth: 0,
+              }}
               onFocus={e => e.target.style.borderBottomColor = 'var(--border-strong)'}
               onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
+            {!hasAudio && (
+              <span className="pill pill-warning hide-mobile" title="No audio attached">
+                <AlertCircle size={10} /> Audio needed
+              </span>
+            )}
             <button onClick={() => onPreview(q)} disabled={!q.source || disabled}
-              className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-              style={{ background: isPreviewing ? 'var(--accent)' : 'transparent', color: isPreviewing ? 'var(--surface)' : 'inherit' }}
-              title="Preview full extract (intro + all plays + between announcements)">
+              className={isPreviewing ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
+              title="Preview this extract with announcements and plays">
               {isPreviewing ? <Pause size={12} /> : <Play size={12} />}
-              Preview
+              <span className="hide-mobile">Preview</span>
             </button>
             <button onClick={onDelete} disabled={disabled || !onDelete}
-              className="p-2 hairline opacity-50 hover:opacity-100"
-              style={{ background: 'transparent' }} title="Delete extract">
-              <Trash2 size={14} />
+              className="btn btn-danger-ghost btn-icon btn-sm" title="Delete extract">
+              <Trash2 size={13} />
             </button>
           </div>
 
+          {/* Announcement */}
           <div className="mb-4">
-            <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Announcement</label>
+            <label className="field-label">Announcement</label>
             <textarea value={q.intro} onChange={e => onUpdate(q.id, 'intro', e.target.value)} disabled={disabled} rows={2}
-              className="w-full text-sm" style={{ resize: 'vertical' }} />
+              className="w-full" style={{ resize: 'vertical', fontSize: '13px', lineHeight: 1.5 }} />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {/* Timing controls */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider opacity-50 flex items-center gap-1.5 mb-1"><Repeat size={11} /> Plays</label>
-              <input type="number" min="1" max="10" value={q.plays} onChange={e => onUpdate(q.id, 'plays', Math.max(1, parseInt(e.target.value) || 1))} disabled={disabled} className="w-full text-sm" />
+              <label className="field-label flex items-center gap-1.5"><Repeat size={11} /> Plays</label>
+              <input type="number" min="1" max="10" value={q.plays} onChange={e => onUpdate(q.id, 'plays', Math.max(1, parseInt(e.target.value) || 1))} disabled={disabled} className="w-full" />
             </div>
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider opacity-50 flex items-center gap-1.5 mb-1"><Clock size={11} /> Gap btwn plays (s)</label>
-              <input type="number" min="0" value={q.gapBetweenPlays} onChange={e => onUpdate(q.id, 'gapBetweenPlays', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full text-sm" />
+              <label className="field-label flex items-center gap-1.5"><Clock size={11} /> Gap between (sec)</label>
+              <input type="number" min="0" value={q.gapBetweenPlays} onChange={e => onUpdate(q.id, 'gapBetweenPlays', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full" />
             </div>
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider opacity-50 flex items-center gap-1.5 mb-1"><ChevronRight size={11} /> Gap after (s)</label>
-              <input type="number" min="0" value={q.gapAfter} onChange={e => onUpdate(q.id, 'gapAfter', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full text-sm" />
+              <label className="field-label flex items-center gap-1.5"><ChevronRight size={11} /> Gap after (sec)</label>
+              <input type="number" min="0" value={q.gapAfter} onChange={e => onUpdate(q.id, 'gapAfter', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full" />
             </div>
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider opacity-50 flex items-center gap-1.5 mb-1"><Award size={11} /> Marks</label>
+              <label className="field-label flex items-center gap-1.5"><Award size={11} /> Marks</label>
               <input type="number" min="0" value={q.marks ?? ''} placeholder="—"
                 onChange={e => onUpdate(q.id, 'marks', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0))}
-                disabled={disabled} className="w-full text-sm" />
+                disabled={disabled} className="w-full" />
             </div>
           </div>
 
+          {/* Audio source area */}
           {q.source ? (
-            <div className="drop-zone hairline has-source p-4" style={{ borderRadius: '2px' }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-left">
-                  {q.source.kind === 'file' && <Music size={18} className="accent" />}
-                  {q.source.kind === 'youtube' && <Youtube size={18} className="accent" />}
-                  {q.source.kind === 'spotify' && <Music size={18} style={{ color: '#1db954' }} />}
-                  <div>
-                    <div className="font-semibold text-sm">
+            <div className="drop-zone has-source" style={{ padding: '14px 16px' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div style={{
+                    width: '32px', height: '32px',
+                    background: q.source.kind === 'spotify' ? 'rgba(29,185,84,0.12)' : 'var(--accent-tint-strong)',
+                    border: '0.5px solid ' + (q.source.kind === 'spotify' ? 'rgba(29,185,84,0.3)' : 'var(--accent-border)'),
+                    borderRadius: 'var(--r-md)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {q.source.kind === 'file' && <Music size={15} style={{ color: 'var(--accent-soft)' }} />}
+                    {q.source.kind === 'youtube' && <Youtube size={15} style={{ color: 'var(--accent-soft)' }} />}
+                    {q.source.kind === 'spotify' && <Music size={15} style={{ color: '#1db954' }} />}
+                  </div>
+                  <div className="min-w-0">
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {q.source.kind === 'file' && q.source.name}
                       {q.source.kind === 'youtube' && `YouTube · ${q.source.videoId}`}
                       {q.source.kind === 'spotify' && (
-                        <span>
-                          {q.source.name} <span className="opacity-60">— {q.source.artists}</span>
-                        </span>
+                        <span>{q.source.name} <span style={{ color: 'var(--text-muted)' }}>— {q.source.artists}</span></span>
                       )}
                     </div>
-                    <div className="mono-font text-xs opacity-70 mt-0.5">
+                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                       {q.source.kind === 'file' && (() => {
                         const trimStart = q.source.trimStart || 0;
                         const trimEnd = q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration;
@@ -3331,15 +3621,15 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                       {q.source.kind === 'spotify' && (
                         <>
                           {q.source.startStr} → {q.source.endStr} · clip {formatTime(q.source.duration)} · {q.plays}× plays
-                          {q.source.previewUrl && q.source.end <= 30 && <span className="ml-2" style={{ color: '#1db954' }}>✓ fits in 30s preview (audio export OK)</span>}
+                          {q.source.previewUrl && q.source.end <= 30 && <span className="ml-2" style={{ color: 'var(--success)' }}>· exportable</span>}
                         </>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   {q.source.kind === 'file' && q.source.peaks && (
-                    <div className="hide-mobile mr-2">
+                    <div className="hide-mobile mr-1">
                       <WaveformThumb
                         peaks={q.source.peaks}
                         trimStart={q.source.trimStart || 0}
@@ -3348,30 +3638,38 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                     </div>
                   )}
                   {q.source.kind === 'spotify' && q.source.externalUrl && (
-                    <a href={q.source.externalUrl} target="_blank" rel="noopener" className="p-2 rounded" style={{ background: 'transparent' }} title="Open in Spotify">
-                      <ExternalLink size={14} />
+                    <a href={q.source.externalUrl} target="_blank" rel="noopener" className="btn btn-ghost btn-icon btn-sm" title="Open in Spotify">
+                      <ExternalLink size={13} />
                     </a>
                   )}
-                  <button onClick={() => onClear(q.id)} disabled={disabled} className="p-2 rounded" style={{ background: 'transparent' }} title="Remove source">
-                    <Trash2 size={14} />
+                  <button onClick={() => onClear(q.id)} disabled={disabled}
+                    className="btn btn-danger-ghost btn-icon btn-sm" title="Remove source">
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
               {q.source.kind === 'youtube' && (
-                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                  <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Convert to local file with yt-dlp</summary>
+                <details className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--border)' }}>
+                  <summary style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>▸</span> Convert to local file with yt-dlp
+                  </summary>
                   <div className="mt-2 flex items-center gap-2">
-                    <code className="mono-font text-xs p-2 flex-1 overflow-x-auto" style={{ background: 'var(--text)', color: 'var(--surface)', borderRadius: '2px' }}>{ytdlpCommand}</code>
-                    <button onClick={() => navigator.clipboard.writeText(ytdlpCommand)} className="p-2 hairline" style={{ background: 'transparent' }} title="Copy">
+                    <code className="mono-font flex-1 overflow-x-auto" style={{ fontSize: '11px', padding: '8px 10px', background: 'var(--code-bg)', color: 'var(--code-text)', borderRadius: 'var(--r-sm)' }}>{ytdlpCommand}</code>
+                    <button onClick={() => navigator.clipboard.writeText(ytdlpCommand)}
+                      className="btn btn-secondary btn-icon btn-sm" title="Copy">
                       <Copy size={12} />
                     </button>
                   </div>
-                  <div className="text-xs opacity-60 mt-2">Run this in your terminal to extract just the clip as MP3, then upload it as a file for full audio export support.</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '8px', lineHeight: 1.5 }}>
+                    Run this in your terminal to extract just the clip as MP3, then upload it for full audio export support.
+                  </div>
                 </details>
               )}
               {q.source.kind === 'file' && q.source.buffer && (
-                <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
-                  <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Trim audio</summary>
+                <details className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--border)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
+                  <summary style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>▸</span> Trim audio
+                  </summary>
                   <WaveformTrimmer source={q.source} disabled={disabled}
                     onUpdate={(s, e) => onUpdate(q.id, 'source', { ...q.source, trimStart: s, trimEnd: e })} />
                 </details>
@@ -3379,90 +3677,96 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
             </div>
           ) : (
             <div>
-              <div className="flex gap-2 mb-2 flex-wrap">
-                <button onClick={() => setMode('file')} className={`tab mono-font text-xs uppercase tracking-wider ${mode === 'file' ? 'active' : ''}`} disabled={disabled}>
+              <div className="flex gap-1.5 mb-3 flex-wrap">
+                <button onClick={() => setMode('file')} className={`tab ${mode === 'file' ? 'active' : ''}`} disabled={disabled}>
                   <Upload size={11} className="inline mr-1" /> File
                 </button>
-                <button onClick={() => setMode('youtube')} className={`tab mono-font text-xs uppercase tracking-wider ${mode === 'youtube' ? 'active' : ''}`} disabled={disabled}>
+                <button onClick={() => setMode('youtube')} className={`tab ${mode === 'youtube' ? 'active' : ''}`} disabled={disabled}>
                   <Youtube size={11} className="inline mr-1" /> YouTube
                 </button>
-                <button onClick={() => setMode('spotify')} className={`tab mono-font text-xs uppercase tracking-wider ${mode === 'spotify' ? 'active' : ''}`} disabled={disabled}>
+                <button onClick={() => setMode('spotify')} className={`tab ${mode === 'spotify' ? 'active' : ''}`} disabled={disabled}>
                   <Music size={11} className="inline mr-1" /> Spotify
                 </button>
               </div>
 
               {mode === 'file' && (
-                <div className="drop-zone hairline p-4 text-center"
-                  style={{ borderStyle: 'dashed', borderRadius: '2px', background: dragOver ? 'var(--accent-tint)' : 'transparent' }}
+                <div className="drop-zone text-center"
+                  style={{
+                    padding: '20px 16px',
+                    background: dragOver ? 'var(--accent-tint-strong)' : 'var(--surface-2)',
+                    borderColor: dragOver ? 'var(--accent-border)' : 'var(--border-strong)',
+                  }}
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}>
                   <button onClick={() => fileInputRef.current?.click()} disabled={disabled}
-                    className="flex items-center justify-center gap-2 w-full py-3 mono-font text-xs uppercase tracking-wider opacity-60"
-                    style={{ background: 'transparent' }}>
-                    <Upload size={14} /> Drop audio here or click to choose
+                    className="btn btn-ghost"
+                    style={{ background: 'transparent', padding: '4px 0' }}>
+                    <Upload size={14} /> <span>Drop audio here or click to choose</span>
                   </button>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '6px' }}>MP3, WAV, or M4A</div>
                   <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={e => onFileUpload(q.id, e.target.files[0])} />
                 </div>
               )}
 
               {mode === 'youtube' && (
-                <div className="hairline p-4" style={{ borderStyle: 'dashed', borderRadius: '2px' }}>
+                <div style={{ background: 'var(--surface-2)', border: '0.5px solid var(--border)', borderRadius: 'var(--r-md)', padding: '14px' }}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-3">
-                      <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">YouTube URL</label>
-                      <input type="text" value={ytUrl} onChange={e => setYtUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="w-full text-sm" disabled={disabled} />
+                      <label className="field-label">YouTube URL</label>
+                      <input type="text" value={ytUrl} onChange={e => setYtUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="w-full" disabled={disabled} />
                     </div>
                     <div>
-                      <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Start</label>
-                      <input type="text" value={ytStart} onChange={e => setYtStart(e.target.value)} placeholder="0:45 or 1m23s" className="w-full text-sm" disabled={disabled} />
+                      <label className="field-label">Start</label>
+                      <input type="text" value={ytStart} onChange={e => setYtStart(e.target.value)} placeholder="0:45 or 1m23s" className="w-full" disabled={disabled} />
                     </div>
                     <div>
-                      <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">End</label>
-                      <input type="text" value={ytEnd} onChange={e => setYtEnd(e.target.value)} placeholder="2:15" className="w-full text-sm" disabled={disabled} />
+                      <label className="field-label">End</label>
+                      <input type="text" value={ytEnd} onChange={e => setYtEnd(e.target.value)} placeholder="2:15" className="w-full" disabled={disabled} />
                     </div>
                     <div className="flex items-end">
                       <button onClick={() => {
                         onYouTubeSet(q.id, { url: ytUrl, startStr: ytStart, endStr: ytEnd });
                         setYtUrl(''); setYtStart(''); setYtEnd('');
                       }} disabled={disabled || !ytUrl}
-                        className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                        style={{ color: 'var(--surface)', borderRadius: '2px' }}>
+                        className="btn btn-primary btn-sm w-full">
                         Add clip
                       </button>
                     </div>
                   </div>
-                  <div className="text-xs opacity-50 mt-2">Tip: accepts <code className="mono-font">1:23</code>, <code className="mono-font">83</code>, or <code className="mono-font">1m23s</code> formats.</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '10px', lineHeight: 1.5 }}>
+                    Time formats accepted: <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 4px', borderRadius: '3px' }}>1:23</code>, <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 4px', borderRadius: '3px' }}>83</code>, or <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 4px', borderRadius: '3px' }}>1m23s</code>.
+                  </div>
                 </div>
               )}
 
               {mode === 'spotify' && (
-                <div className="hairline p-4" style={{ borderStyle: 'dashed', borderRadius: '2px' }}>
+                <div style={{ background: 'var(--surface-2)', border: '0.5px solid var(--border)', borderRadius: 'var(--r-md)', padding: '14px' }}>
                   {!spotifyConnected ? (
-                    <div className="text-sm opacity-70 text-center py-2">
-                      Connect to Spotify first (top-right · Voice & API) to add tracks. You can also bulk-import a playlist from the Spotify panel above.
+                    <div className="text-center py-3" style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      Connect a Spotify account first.<br />
+                      <span style={{ color: 'var(--text-dim)' }}>Open <strong style={{ color: 'var(--text-muted)' }}>Voice &amp; API</strong> in the header to connect.</span>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="md:col-span-3">
-                        <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Spotify track URL / URI</label>
-                        <input type="text" value={spUrl} onChange={e => setSpUrl(e.target.value)} placeholder="https://open.spotify.com/track/..." className="w-full text-sm" disabled={disabled} />
+                        <label className="field-label">Spotify track URL or URI</label>
+                        <input type="text" value={spUrl} onChange={e => setSpUrl(e.target.value)} placeholder="https://open.spotify.com/track/…" className="w-full" disabled={disabled} />
                       </div>
                       <div>
-                        <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">Start</label>
-                        <input type="text" value={spStart} onChange={e => setSpStart(e.target.value)} placeholder="0:00" className="w-full text-sm" disabled={disabled} />
+                        <label className="field-label">Start</label>
+                        <input type="text" value={spStart} onChange={e => setSpStart(e.target.value)} placeholder="0:00" className="w-full" disabled={disabled} />
                       </div>
                       <div>
-                        <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">End</label>
-                        <input type="text" value={spEnd} onChange={e => setSpEnd(e.target.value)} placeholder="2:15 (blank = full track)" className="w-full text-sm" disabled={disabled} />
+                        <label className="field-label">End</label>
+                        <input type="text" value={spEnd} onChange={e => setSpEnd(e.target.value)} placeholder="2:15 (blank = full track)" className="w-full" disabled={disabled} />
                       </div>
                       <div className="flex items-end">
                         <button onClick={async () => {
                           await onSpotifyTrackAdd(q.id, spUrl, spStart, spEnd);
                           setSpUrl(''); setSpStart(''); setSpEnd('');
                         }} disabled={disabled || !spUrl}
-                          className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                          style={{ color: 'var(--surface)', borderRadius: '2px' }}>
+                          className="btn btn-primary btn-sm w-full">
                           Add clip
                         </button>
                       </div>
@@ -4234,6 +4538,24 @@ function HelpPanel({ onClose }) {
   );
 }
 
+// Compact stat cell for the exam dashboard
+function StatCell({ label, value, icon, accent }) {
+  return (
+    <div className="flex items-center gap-2" style={{ paddingTop: '4px', paddingBottom: '4px' }}>
+      <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{label}</span>
+      <span className="flex items-center gap-1" style={{
+        fontSize: '15px',
+        fontWeight: 600,
+        color: accent ? 'var(--accent-soft)' : 'var(--text)',
+        letterSpacing: '-0.01em',
+      }}>
+        {icon && <span style={{ color: 'var(--text-dim)' }}>{icon}</span>}
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function WaveformThumb({ peaks, trimStart, trimEnd, totalDuration, width = 120, height = 22 }) {
   if (!peaks || peaks.length === 0) return null;
   const startFrac = totalDuration ? (trimStart || 0) / totalDuration : 0;
@@ -4274,32 +4596,36 @@ function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete, onToggleSha
   const ownerName = entry.ownerName || entry.ownerEmail;
 
   return (
-    <div className="group relative hairline" style={{ borderRadius: '3px', background: 'transparent' }}>
+    <div className="group relative" style={{ borderRadius: 'var(--r-md)' }}>
       <button onClick={onLoad}
-        className="w-full text-left p-2 hover-glow"
-        style={{ background: 'transparent', borderRadius: '3px' }}
+        className="w-full text-left hover-glow"
+        style={{ background: 'transparent', borderRadius: 'var(--r-md)', padding: '8px 10px', border: 'none', cursor: 'pointer' }}
         title={`Load "${entry.name}"`}>
-        <div className="flex items-center gap-1.5" style={{ paddingRight: '20px' }}>
+        <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
           {entry.kind === 'cloud'
-            ? <Cloud size={11} className="accent" style={{ flexShrink: 0 }} />
-            : <CloudOff size={11} style={{ flexShrink: 0, color: 'var(--text-dim)' }} />
+            ? <Cloud size={11} style={{ flexShrink: 0, color: 'var(--accent-soft)' }} />
+            : <CloudOff size={11} style={{ flexShrink: 0, color: 'var(--text-faint)' }} />
           }
-          <div className="text-sm font-medium truncate">{entry.name}</div>
+          <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</div>
         </div>
-        <div className="mono-font text-xs opacity-50 mt-0.5" style={{ paddingLeft: '17px' }}>
-          {extractCount} extract{extractCount === 1 ? '' : 's'} · {dateStr}
-          {entry.kind === 'cloud' && entry.shared_with_all && <> · <span className="accent2">shared</span></>}
+        <div className="flex items-center gap-1.5 mt-0.5" style={{ paddingLeft: '19px', fontSize: '11px', color: 'var(--text-dim)' }}>
+          <span>{extractCount} extract{extractCount === 1 ? '' : 's'}</span>
+          <span style={{ color: 'var(--text-faint)' }}>·</span>
+          <span>{dateStr}</span>
+          {entry.kind === 'cloud' && entry.shared_with_all && (
+            <span className="pill pill-accent" style={{ fontSize: '10px', padding: '1px 6px', marginLeft: '2px' }}>Shared</span>
+          )}
         </div>
         {entry.kind === 'cloud' && !entry.isMine && ownerName && (
-          <div className="mono-font text-xs mt-0.5" style={{ paddingLeft: '17px', color: 'var(--text-dim)' }}>
+          <div className="mt-0.5" style={{ paddingLeft: '19px', fontSize: '11px', color: 'var(--text-faint)' }}>
             by {ownerName}
           </div>
         )}
       </button>
       {(onUpdate || onRename || onDelete || onToggleShare) && (
         <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-          className="absolute top-1 right-1 p-1 opacity-40 hover:opacity-100"
-          style={{ background: 'transparent', borderRadius: '3px' }}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100"
+          style={{ background: 'transparent', borderRadius: '4px', padding: '4px', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', transition: 'opacity 0.15s' }}
           title="Options">
           <ChevronDown size={12} />
         </button>
@@ -4309,34 +4635,44 @@ function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete, onToggleSha
         <>
           <div onClick={() => setMenuOpen(false)}
             style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-          <div className="absolute right-1 top-7 paper ink-shadow"
-            style={{ borderRadius: '6px', minWidth: '170px', zIndex: 11 }}>
+          <div className="absolute right-1 top-9"
+            style={{
+              background: 'var(--surface-solid)',
+              border: '0.5px solid var(--border)',
+              borderRadius: 'var(--r-md)',
+              minWidth: '180px',
+              zIndex: 11,
+              boxShadow: 'var(--shadow-lg)',
+              overflow: 'hidden',
+            }}>
             {onUpdate && (
               <button onClick={() => { setMenuOpen(false); onUpdate(); }}
-                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
-                style={{ background: 'transparent' }}>
+                className="w-full text-left hover-glow flex items-center gap-2"
+                style={{ background: 'transparent', border: 'none', padding: '8px 12px', fontSize: '12px', color: 'var(--text)', cursor: 'pointer' }}>
                 <Save size={11} /> Update with current
               </button>
             )}
             {onToggleShare && (
               <button onClick={() => { setMenuOpen(false); onToggleShare(); }}
-                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
-                style={{ background: 'transparent' }}>
+                className="w-full text-left hover-glow flex items-center gap-2"
+                style={{ background: 'transparent', border: 'none', padding: '8px 12px', fontSize: '12px', color: 'var(--text)', cursor: 'pointer' }}>
                 {entry.shared_with_all ? <CloudOff size={11} /> : <Cloud size={11} />}
                 {entry.shared_with_all ? 'Stop sharing' : 'Share with workspace'}
               </button>
             )}
             {onRename && (
               <button onClick={() => { setMenuOpen(false); onRename(); }}
-                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
-                style={{ background: 'transparent' }}>
+                className="w-full text-left hover-glow flex items-center gap-2"
+                style={{ background: 'transparent', border: 'none', padding: '8px 12px', fontSize: '12px', color: 'var(--text)', cursor: 'pointer' }}>
                 <FileText size={11} /> Rename
               </button>
             )}
             {onDelete && (
               <button onClick={() => { setMenuOpen(false); onDelete(); }}
-                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
-                style={{ background: 'transparent', color: 'var(--accent)' }}>
+                className="w-full text-left flex items-center gap-2"
+                style={{ background: 'transparent', border: 'none', padding: '8px 12px', fontSize: '12px', color: 'var(--danger)', cursor: 'pointer', borderTop: '0.5px solid var(--border)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--danger-tint)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                 <Trash2 size={11} /> Delete
               </button>
             )}

@@ -497,8 +497,8 @@ export default function App() {
   };
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(0);
-  const [examTitle, setExamTitle] = useState('Enter your exam title here');
+  const [readingTime, setReadingTime] = useState(300);
+  const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1203,7 +1203,7 @@ export default function App() {
     setExamTitle('Untitled exam');
     setQuestions(DEFAULT_QUESTIONS.map(q => ({ ...q, source: null })));
     setScript(DEFAULT_SCRIPT);
-    setReadingTime(0);
+    setReadingTime(300);
   };
 
   // ===== Share-via-URL =====
@@ -4131,10 +4131,10 @@ function HelpPanel({ onClose }) {
                   <strong>Uploaded audio files</strong> (MP3, WAV, M4A) — best option. Always exported into the compiled file. Can be trimmed precisely using the waveform editor that appears when you expand an extract.
                 </li>
                 <li style={{ marginBottom: '12px' }}>
-                  <strong>YouTube clips</strong> — works for live preview, but cannot be exported into the compiled file due to YouTube's terms. The app provides a <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 5px', borderRadius: '3px' }}>yt-dlp</code> command you can run on your computer to download the clip as a file, then re-upload it.
+                  <strong>YouTube clips</strong> — paste any YouTube URL with start and end timestamps. Plays correctly during live preview, but YouTube blocks third-party apps from including its content in downloads, so the clip will be silent in the compiled file. If you need it in the compiled file, expand the extract — the app shows you a <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 5px', borderRadius: '3px' }}>yt-dlp</code> command. This is a free command-line tool; if you're not familiar with terminals, ask a tech-comfortable colleague. Once you have the clip as an MP3, upload it normally.
                 </li>
                 <li style={{ marginBottom: 0 }}>
-                  <strong>Spotify tracks</strong> — requires connecting your Spotify account (under Voice & API). Full-track playback requires Premium. For tracks Spotify exposes a 30-second preview for, clips ending within those 30 seconds can be baked into the compiled file.
+                  <strong>Spotify tracks</strong> — use a Spotify track as your audio source. You'll need to connect a Spotify account in Voice & API. Two important caveats: (1) full-track playback only works in live preview, not in the compiled file, because Spotify forbids redistribution. (2) Full-track playback also requires a Spotify Premium account. The one exception: if your clip's end time falls within the first 30 seconds of the track, the app can use Spotify's free 30-second preview and bake those clips into the compiled file.
                 </li>
               </ul>
             </div>

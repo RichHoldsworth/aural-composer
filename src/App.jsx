@@ -497,8 +497,8 @@ export default function App() {
   };
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(300);
-  const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
+  const [readingTime, setReadingTime] = useState(0);
+  const [examTitle, setExamTitle] = useState('Enter your exam title here');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1203,7 +1203,7 @@ export default function App() {
     setExamTitle('Untitled exam');
     setQuestions(DEFAULT_QUESTIONS.map(q => ({ ...q, source: null })));
     setScript(DEFAULT_SCRIPT);
-    setReadingTime(300);
+    setReadingTime(0);
   };
 
   // ===== Share-via-URL =====

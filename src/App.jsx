@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award, SkipForward, SkipBack, ChevronsRight, Square, Sun, Moon, Menu, X, LogOut, Users, Cloud, CloudOff, ShieldCheck, Mail } from 'lucide-react';
+import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award, SkipForward, SkipBack, ChevronsRight, Square, Sun, Moon, Menu, X, LogOut, Users, Cloud, CloudOff, ShieldCheck, Mail, HelpCircle, Sparkles } from 'lucide-react';
 import { supabase, getMyProfile, listExams, saveExam as supaSaveExam, deleteExam as supaDeleteExam, listAllProfiles, setUserApproved } from './supabaseClient';
 
 // ===== Default exam =====
@@ -423,6 +423,21 @@ export default function App() {
   const [cloudExams, setCloudExams] = useState([]);
   const [cloudExamsLoading, setCloudExamsLoading] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(() => {
+    return localStorage.getItem('aural_welcome_dismissed') !== '1';
+  });
+  const [showQuickStart, setShowQuickStart] = useState(() => {
+    return localStorage.getItem('aural_quickstart_dismissed') !== '1';
+  });
+  const dismissWelcome = () => {
+    setShowWelcomeBanner(false);
+    localStorage.setItem('aural_welcome_dismissed', '1');
+  };
+  const dismissQuickStart = () => {
+    setShowQuickStart(false);
+    localStorage.setItem('aural_quickstart_dismissed', '1');
+  };
 
   // Set up auth listener on mount
   useEffect(() => {
@@ -2411,6 +2426,14 @@ export default function App() {
         <AdminPanel onClose={() => setShowAdminPanel(false)} onChange={reloadCloudExams} />
       )}
 
+      {showHelpPanel && (
+        <HelpPanel onClose={() => setShowHelpPanel(false)} />
+      )}
+
+      {showWelcomeBanner && (
+        <WelcomeBanner onDismiss={dismissWelcome} onOpenHelp={() => { dismissWelcome(); setShowHelpPanel(true); }} />
+      )}
+
       {shareToastMessage && (
         <div style={{
           position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
@@ -2453,6 +2476,13 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setShowHelpPanel(true)}
+              className="p-2 hairline"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              title="Help & how-to guide"
+              aria-label="Help">
+              <HelpCircle size={14} />
+            </button>
             {myProfile?.is_admin && (
               <button onClick={() => setShowAdminPanel(true)}
                 className="p-2 hairline"
@@ -2677,6 +2707,31 @@ export default function App() {
 
         {/* Main content */}
         <main className="flex-1 min-w-0 px-4 sm:px-8 py-6 sm:py-8">
+
+        {/* Quick start strip - dismissible */}
+        {showQuickStart && (
+          <div className="mb-6 hairline flex items-center gap-3 p-3" style={{
+            background: 'var(--accent-tint)',
+            borderColor: 'var(--accent-border)',
+            borderRadius: '8px',
+          }}>
+            <Sparkles size={14} className="accent flex-shrink-0" />
+            <div className="flex-1 text-xs sm:text-sm" style={{ lineHeight: 1.5 }}>
+              <strong>Quick start:</strong> drop an exam paper PDF below (or edit the default extracts) → add audio to each extract → preview the full exam → compile to MP3.
+              {' '}
+              <button onClick={() => setShowHelpPanel(true)} className="accent underline" style={{ background: 'transparent', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
+                Full guide →
+              </button>
+            </div>
+            <button onClick={dismissQuickStart}
+              className="p-1 opacity-50 hover:opacity-100 flex-shrink-0"
+              style={{ background: 'transparent', borderRadius: '4px', color: 'var(--text-muted)' }}
+              title="Dismiss this tip">
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
         {/* PDF + Save/Load toolbar */}
         <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px', padding: '20px' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3877,6 +3932,277 @@ function AdminPanel({ onClose, onChange }) {
               </button>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== Welcome banner (shown to new users until dismissed) =====
+function WelcomeBanner({ onDismiss, onOpenHelp }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 80,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+      animation: 'fadeIn 0.2s ease',
+    }} onClick={onDismiss}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--surface)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '16px',
+        padding: '32px 28px',
+        maxWidth: '480px',
+        width: '100%',
+        boxShadow: 'var(--shadow-card)',
+      }}>
+        <div style={{
+          width: '52px', height: '52px',
+          background: 'linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%)',
+          borderRadius: '13px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: 'var(--logo-shadow)',
+          marginBottom: '16px',
+        }}>
+          <Sparkles size={24} color="#ffffff" strokeWidth={2.2} />
+        </div>
+        <h2 className="display-font" style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.02em', margin: 0, marginBottom: '10px' }}>
+          Welcome to Aural Composer
+        </h2>
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '20px' }}>
+          A tool for building listening-exam audio files: stitch together your audio extracts with examiner-style spoken announcements, configure plays, pauses, and answer time, then export as MP3 ready to play in your classroom.
+        </p>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '24px' }}>
+          <div className="mono-font" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-dim)', marginBottom: '8px' }}>How it works</div>
+          <ol style={{ paddingLeft: '20px', margin: 0 }}>
+            <li>Drop in your exam paper PDF (or use the default Trinity setup)</li>
+            <li>Add audio to each extract — upload, YouTube link, or Spotify track</li>
+            <li>Preview the whole exam to check timing and announcements</li>
+            <li>Compile and download as MP3, WAV, or OGG</li>
+          </ol>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={onDismiss}
+            className="accent-bg flex-1"
+            style={{ padding: '11px 16px', fontSize: '13px', fontWeight: 600, borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+            Get started
+          </button>
+          <button onClick={onOpenHelp}
+            style={{ padding: '11px 16px', fontSize: '13px', background: 'transparent', color: 'var(--text-muted)', borderRadius: '8px', border: '0.5px solid var(--border)', cursor: 'pointer' }}>
+            See full guide
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== Help panel (?  button in header) =====
+function HelpPanel({ onClose }) {
+  const [section, setSection] = useState('overview');
+  const sections = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'workflow', label: 'Workflow' },
+    { id: 'audio', label: 'Audio sources' },
+    { id: 'announcements', label: 'Announcements' },
+    { id: 'sharing', label: 'Saving & sharing' },
+    { id: 'shortcuts', label: 'Shortcuts' },
+    { id: 'troubleshooting', label: 'Troubleshooting' },
+  ];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 70,
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '40px 16px', overflowY: 'auto',
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--surface)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '14px',
+        maxWidth: '720px',
+        width: '100%',
+        boxShadow: 'var(--shadow-card)',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: 'calc(100vh - 80px)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="flex items-center gap-2">
+            <HelpCircle size={16} className="accent" />
+            <h2 className="display-font" style={{ fontSize: '17px', fontWeight: 600, margin: 0 }}>How to use Aural Composer</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 hairline" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '6px' }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Section tabs */}
+        <div style={{ padding: '12px 24px', borderBottom: '0.5px solid var(--border)', overflowX: 'auto' }}>
+          <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
+            {sections.map(s => (
+              <button key={s.id} onClick={() => setSection(s.id)}
+                className="mono-font text-xs uppercase tracking-wider"
+                style={{
+                  padding: '6px 12px',
+                  background: section === s.id ? 'var(--accent)' : 'transparent',
+                  color: section === s.id ? 'var(--accent-bg-on)' : 'var(--text-muted)',
+                  border: '0.5px solid ' + (section === s.id ? 'var(--accent)' : 'var(--border)'),
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Section content */}
+        <div style={{ padding: '24px', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--text)' }}>
+          {section === 'overview' && (
+            <div>
+              <p style={{ marginTop: 0 }}>
+                Aural Composer builds the listening section of a music or language exam. You provide the audio extracts, and the app assembles them into a single timed file with examiner-style spoken announcements between each extract — "Question 1. You will hear this extract three times." — plus the gaps, repeats, and answer time you'd hear in a real exam.
+              </p>
+              <p>
+                The compiled file plays end-to-end on any device with no human intervention: ideal for classroom playback, exam centres without a CD player, or sending to candidates remotely.
+              </p>
+              <p style={{ marginBottom: 0, color: 'var(--text-muted)', fontSize: '13px' }}>
+                Everything you set up — extracts, announcements, timings — is saved automatically to your account. Sign in from any device to pick up where you left off.
+              </p>
+            </div>
+          )}
+
+          {section === 'workflow' && (
+            <div>
+              <ol style={{ paddingLeft: '20px', margin: 0 }}>
+                <li style={{ marginBottom: '14px' }}>
+                  <strong>Start from an exam paper PDF</strong> — drop it on the "Start from a paper" zone. The app auto-detects extract headings, play counts, and marks, and creates the right number of extracts for you. Or just edit the default Trinity setup below.
+                </li>
+                <li style={{ marginBottom: '14px' }}>
+                  <strong>Add audio to each extract</strong> — upload a file, paste a YouTube link with start/end timestamps, or import a Spotify track. You can drag-reorder extracts, edit announcement text, and trim audio clips precisely.
+                </li>
+                <li style={{ marginBottom: '14px' }}>
+                  <strong>Set timings</strong> — for each extract: how many plays, the gap between plays (thinking time), and the gap after (answer time before the next extract starts). Defaults match Trinity GCSE timings.
+                </li>
+                <li style={{ marginBottom: '14px' }}>
+                  <strong>Preview the full exam</strong> — click "Preview full exam (live)" to play through everything in real time. You can pause, skip extracts, or skip individual segments using the transport controls.
+                </li>
+                <li style={{ marginBottom: 0 }}>
+                  <strong>Compile and download</strong> — choose MP3, WAV, or OGG, click Compile, wait a minute or so, and download the file.
+                </li>
+              </ol>
+            </div>
+          )}
+
+          {section === 'audio' && (
+            <div>
+              <p style={{ marginTop: 0 }}>
+                Three sources are supported, with different export characteristics:
+              </p>
+              <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                <li style={{ marginBottom: '12px' }}>
+                  <strong>Uploaded audio files</strong> (MP3, WAV, M4A) — best option. Always exported into the compiled file. Can be trimmed precisely using the waveform editor that appears when you expand an extract.
+                </li>
+                <li style={{ marginBottom: '12px' }}>
+                  <strong>YouTube clips</strong> — works for live preview, but cannot be exported into the compiled file due to YouTube's terms. The app provides a <code className="mono-font" style={{ background: 'var(--surface-elev)', padding: '1px 5px', borderRadius: '3px' }}>yt-dlp</code> command you can run on your computer to download the clip as a file, then re-upload it.
+                </li>
+                <li style={{ marginBottom: 0 }}>
+                  <strong>Spotify tracks</strong> — requires connecting your Spotify account (under Voice & API). Full-track playback requires Premium. For tracks Spotify exposes a 30-second preview for, clips ending within those 30 seconds can be baked into the compiled file.
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {section === 'announcements' && (
+            <div>
+              <p style={{ marginTop: 0 }}>
+                Spoken examiner announcements introduce each extract, count down between plays, and bookend the exam. By default the app uses your browser's built-in speech synthesis (free, but can't be recorded into the compiled file — you'll get short marker tones in the export instead).
+              </p>
+              <p>
+                For voice baked into the compiled file, you need an API key from either:
+              </p>
+              <ul style={{ paddingLeft: '20px' }}>
+                <li style={{ marginBottom: '8px' }}><strong>OpenAI</strong> (cheaper, very natural voices including British-accent "Fable"). About $0.015 per minute of speech. Sign up at platform.openai.com — costs about $5 minimum credit.</li>
+                <li style={{ marginBottom: 0 }}><strong>ElevenLabs</strong> (more premium, natural British voices). Higher quality but more expensive per minute.</li>
+              </ul>
+              <p>
+                Set this up under <strong>Voice & API</strong> in the header. Keys are stored only in your browser — not on any server.
+              </p>
+              <p style={{ marginBottom: 0 }}>
+                You can edit the announcement text for each extract individually, or change the standard phrasing (opening, between-plays, closing) in the <strong>Announcement script</strong> panel.
+              </p>
+            </div>
+          )}
+
+          {section === 'sharing' && (
+            <div>
+              <p style={{ marginTop: 0 }}>
+                Saved exams have three layers:
+              </p>
+              <ul style={{ paddingLeft: '20px' }}>
+                <li style={{ marginBottom: '12px' }}>
+                  <strong>Cloud workspace</strong> (default when signed in) — saved to your account, available from any device. Marked with a cloud icon in the sidebar. You can share specific exams with all approved workspace members using the dropdown menu on each exam.
+                </li>
+                <li style={{ marginBottom: '12px' }}>
+                  <strong>Browser-local</strong> — exams saved before you had an account, or if cloud save fails. Stays in this browser only. Marked LOCAL with a strikethrough-cloud icon.
+                </li>
+                <li style={{ marginBottom: 0 }}>
+                  <strong>JSON config files / share links</strong> — under Save config / Load config in the toolbar. Use this to back up your exam, email it to a colleague who hasn't joined the workspace, or share a link that loads the exam (audio files not included).
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {section === 'shortcuts' && (
+            <div>
+              <p style={{ marginTop: 0 }}>Keyboard shortcuts (when not typing in a text field):</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px 16px', marginTop: '12px' }}>
+                <kbd className="mono-font" style={kbdStyle}>Space</kbd><div>Play or pause the live preview</div>
+                <kbd className="mono-font" style={kbdStyle}>Esc</kbd><div>Stop preview, or close any open panel</div>
+                <kbd className="mono-font" style={kbdStyle}>N</kbd><div>Skip forward to the next extract</div>
+                <kbd className="mono-font" style={kbdStyle}>P</kbd><div>Skip back to the previous extract</div>
+                <kbd className="mono-font" style={kbdStyle}>K</kbd><div>Skip the current item (announcement, silence, or audio segment)</div>
+                <kbd className="mono-font" style={kbdStyle}>T</kbd><div>Toggle between dark and light theme</div>
+              </div>
+            </div>
+          )}
+
+          {section === 'troubleshooting' && (
+            <div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>The compiled file is silent in places.</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
+                  YouTube and Spotify clips can't be baked into the compiled file (DRM). Use uploaded MP3 files for full export support. For YouTube clips, expand the extract and copy the <code className="mono-font">yt-dlp</code> command to extract the clip locally.
+                </p>
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>Announcements are silent or replaced by short beeps.</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
+                  Browser TTS can't be recorded into the compiled file. Set up OpenAI or ElevenLabs under Voice & API to get spoken announcements baked into the audio.
+                </p>
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>The compile takes a long time.</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
+                  MP3 encoding runs in the browser and can take 30 seconds to 2 minutes depending on length. WAV is instant but produces large files. OGG is fast but has less universal support.
+                </p>
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>Audio levels are inconsistent between extracts.</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
+                  Enable "Normalise loudness" under Audio quality settings before compiling. The app will balance quiet and loud extracts to a consistent level.
+                </p>
+              </div>
+              <div style={{ marginBottom: 0 }}>
+                <strong>Something else is wrong.</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
+                  Email <a href="mailto:rholdsworth82@gmail.com" style={{ color: 'var(--accent)' }}>rholdsworth82@gmail.com</a> with a screenshot if possible — describe what you were trying to do and what happened instead.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

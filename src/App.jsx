@@ -2205,6 +2205,7 @@ export default function App() {
         --bg-image-main: url('/bg/main-dark.webp');
         --bg-overlay: linear-gradient(180deg, rgba(11,11,15,0.55) 0%, rgba(11,11,15,0.7) 100%);
         --surface: rgba(255,255,255,0.03);
+        --surface-solid: #16161d;
         --surface-2: rgba(255,255,255,0.02);
         --surface-elev: rgba(255,255,255,0.06);
         --border: rgba(255,255,255,0.08);
@@ -2241,6 +2242,7 @@ export default function App() {
         --bg-image-main: url('/bg/main-light.webp');
         --bg-overlay: linear-gradient(180deg, rgba(240,238,240,0.6) 0%, rgba(240,238,240,0.75) 100%);
         --surface: #ffffff;
+        --surface-solid: #ffffff;
         --surface-2: #f5f5f3;
         --surface-elev: rgba(0,0,0,0.04);
         --border: rgba(0,0,0,0.12);
@@ -3704,7 +3706,7 @@ function AuthScreen({ theme, toggleTheme }) {
       </button>
 
       <div style={{
-        background: 'var(--surface)',
+        background: 'var(--surface-solid)',
         border: '0.5px solid var(--border)',
         borderRadius: '16px',
         padding: '36px 32px',
@@ -3834,7 +3836,7 @@ function PendingApprovalScreen({ profile, onSignOut, theme, toggleTheme }) {
       </button>
 
       <div style={{
-        background: 'var(--surface)',
+        background: 'var(--surface-solid)',
         border: '0.5px solid var(--border)',
         borderRadius: '16px',
         padding: '36px 32px',
@@ -3911,7 +3913,7 @@ function AdminPanel({ onClose, onChange }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}
       onClick={onClose}>
-      <div className="paper hairline" style={{ borderRadius: '12px', maxWidth: '600px', width: '100%', padding: '20px 24px', boxShadow: 'var(--shadow-card)' }}
+      <div className="hairline" style={{ background: 'var(--surface-solid)', borderRadius: '12px', maxWidth: '600px', width: '100%', padding: '20px 24px', boxShadow: 'var(--shadow-card)' }}
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -3970,7 +3972,7 @@ function WelcomeBanner({ onDismiss, onOpenHelp }) {
       animation: 'fadeIn 0.2s ease',
     }} onClick={onDismiss}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--surface)',
+        background: 'var(--surface-solid)',
         border: '0.5px solid var(--border)',
         borderRadius: '16px',
         padding: '32px 28px',
@@ -4039,7 +4041,7 @@ function HelpPanel({ onClose }) {
       padding: '40px 16px', overflowY: 'auto',
     }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--surface)',
+        background: 'var(--surface-solid)',
         border: '0.5px solid var(--border)',
         borderRadius: '14px',
         maxWidth: '720px',

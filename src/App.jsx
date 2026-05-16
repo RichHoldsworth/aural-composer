@@ -430,6 +430,12 @@ export default function App() {
   const [showQuickStart, setShowQuickStart] = useState(() => {
     return localStorage.getItem('aural_quickstart_dismissed') !== '1';
   });
+  // New layout state — which extract is being edited in the inspector
+  const [selectedExtractId, setSelectedExtractId] = useState(null);
+  // Saved exams drawer (replaces persistent sidebar)
+  const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
+  // Whether the setup card is collapsed (auto-collapses once user has extracts with audio)
+  const [setupCollapsed, setSetupCollapsed] = useState(false);
   const dismissWelcome = () => {
     setShowWelcomeBanner(false);
     localStorage.setItem('aural_welcome_dismissed', '1');
@@ -2067,6 +2073,33 @@ export default function App() {
   const spotifyCount = questions.filter(q => q.source?.kind === 'spotify').length;
   const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
+  // Find the currently-selected extract; fall back to first if selection invalid
+  const selectedExtract = questions.find(q => q.id === selectedExtractId) || null;
+  // If selection is invalid (e.g. selected extract was deleted), pick first.
+  // Also auto-select first if nothing is selected.
+  useEffect(() => {
+    if (!selectedExtractId || !questions.find(q => q.id === selectedExtractId)) {
+      setSelectedExtractId(questions[0]?.id || null);
+    }
+  }, [questions, selectedExtractId]);
+  // Track length to auto-select newly-added extract
+  const prevExtractCountRef = useRef(questions.length);
+  useEffect(() => {
+    if (questions.length > prevExtractCountRef.current) {
+      // New extract added — select the last one
+      const newest = questions[questions.length - 1];
+      if (newest?.id) setSelectedExtractId(newest.id);
+    }
+    prevExtractCountRef.current = questions.length;
+  }, [questions]);
+  // Auto-collapse setup once user has extracts loaded
+  useEffect(() => {
+    if (filledCount > 0 && !setupCollapsed) {
+      setSetupCollapsed(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filledCount > 0]);
+
   // ===== Keyboard shortcuts ===== (placed here so all referenced state/functions are defined)
   useEffect(() => {
     const handler = (e) => {
@@ -2197,73 +2230,74 @@ export default function App() {
       body { margin: 0; background: var(--bg-base); }
 
       :root, [data-theme="dark"] {
-        /* Base — softer charcoal, not pure black. Reads as premium, not gaming. */
-        --bg-base: #0e0e13;
-        --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0e0e13 60%);
+        /* Brighter slate palette — deeper but never pure black */
+        --bg-base: #0e1016;
+        --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #151821 0%, #0e1016 60%);
         --bg-image-auth: url('/bg/auth-dark.webp');
         --bg-image-main: url('/bg/main-dark.webp');
-        --bg-overlay: linear-gradient(180deg, rgba(14,14,19,0.62) 0%, rgba(14,14,19,0.78) 100%);
+        --bg-overlay: linear-gradient(180deg, rgba(14,16,22,0.78) 0%, rgba(14,16,22,0.88) 100%);
 
-        /* Surfaces — layered, all slightly translucent so content feels lifted */
-        --surface: rgba(255,255,255,0.025);
-        --surface-2: rgba(255,255,255,0.015);
-        --surface-elev: rgba(255,255,255,0.05);
-        --surface-solid: #1a1a22;
-        --surface-solid-2: #15151c;
+        /* Surface system — opaque, layered, hover state */
+        --surface: #151821;
+        --surface-2: #131620;
+        --surface-elev: #1b1f2a;
+        --surface-hover: #222738;
+        --surface-solid: #1b1f2a;
+        --surface-solid-2: #151821;
 
-        /* Borders — quieter than before, two levels only */
-        --border: rgba(255,255,255,0.06);
-        --border-strong: rgba(255,255,255,0.12);
+        /* Borders — two levels */
+        --border: #232838;
+        --border-strong: #2a3040;
 
-        /* Text — refined four-level hierarchy */
-        --text: #ececf1;
-        --text-muted: #9a9aa6;
-        --text-dim: #6b6b75;
-        --text-faint: #4a4a52;
+        /* Text hierarchy */
+        --text: #f4f6fb;
+        --text-muted: #a8afbf;
+        --text-dim: #6f7787;
+        --text-faint: #4d5566;
 
-        /* Accent — purple/indigo. Used sparingly. */
-        --accent: #7c7df0;
-        --accent-soft: #9ea0f5;
-        --accent-strong: #6366f1;
+        /* Accent — restrained purple */
+        --accent: #7c5cff;
+        --accent-soft: #8f75ff;
+        --accent-strong: #7c5cff;
         --accent-bg-on: #ffffff;
-        --accent-tint: rgba(124,125,240,0.08);
-        --accent-tint-strong: rgba(124,125,240,0.14);
-        --accent-border: rgba(124,125,240,0.22);
-        --accent-glow: rgba(124,125,240,0.18);
+        --accent-tint: rgba(124,92,255,0.08);
+        --accent-tint-strong: rgba(124,92,255,0.16);
+        --accent-border: rgba(124,92,255,0.32);
+        --accent-glow: rgba(124,92,255,0.25);
         --accent2: #22d3ee;
-        --accent2-tint: rgba(34,211,238,0.12);
+        --accent2-tint: rgba(34,211,238,0.1);
 
-        /* Semantic colours */
-        --success: #4ade80;
-        --success-soft: #86efac;
-        --success-tint: rgba(74,222,128,0.08);
-        --warning: #fbbf24;
-        --warning-tint: rgba(251,191,36,0.08);
-        --danger: #f87171;
-        --danger-tint: rgba(248,113,113,0.08);
+        /* Status colours */
+        --success: #36c275;
+        --success-soft: #5ad08e;
+        --success-tint: rgba(54,194,117,0.1);
+        --success-border: rgba(54,194,117,0.28);
+        --warning: #f2b84b;
+        --warning-tint: rgba(242,184,75,0.1);
+        --warning-border: rgba(242,184,75,0.28);
+        --danger: #f97066;
+        --danger-tint: rgba(249,112,102,0.1);
 
-        --header-bg: rgba(14,14,19,0.7);
-        --input-bg: rgba(255,255,255,0.025);
-        --input-bg-focus: rgba(255,255,255,0.04);
+        --header-bg: rgba(14,16,22,0.85);
+        --input-bg: #131620;
+        --input-bg-focus: #181c28;
 
-        /* Elevations */
-        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-        --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 3px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.35);
-        --shadow-lg: 0 4px 8px rgba(0,0,0,0.3), 0 24px 48px rgba(0,0,0,0.45);
-        --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+        --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.35);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.4), 0 24px 56px rgba(0,0,0,0.5);
+        --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 14px rgba(124,92,255,0.35);
 
-        /* Spacing scale — multiples of 4 */
         --r-sm: 6px;
         --r-md: 8px;
         --r-lg: 12px;
         --r-xl: 16px;
 
         --ink: #2a2520;
-        --waveform-bg: rgba(0,0,0,0.25);
-        --code-bg: #0a0a0e;
-        --code-text: #d5d5dc;
+        --waveform-bg: rgba(255,255,255,0.03);
+        --code-bg: #0a0c12;
+        --code-text: #c8cfdc;
         --scrollbar: rgba(255,255,255,0.08);
-        --scrollbar-hover: rgba(255,255,255,0.15);
+        --scrollbar-hover: rgba(255,255,255,0.16);
       }
 
       [data-theme="light"] {
@@ -2470,6 +2504,18 @@ export default function App() {
         color: var(--text-muted);
         display: block;
         margin-bottom: 6px;
+      }
+
+      /* Two-column workspace: stacks on narrow screens */
+      .extract-workspace {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+      }
+      @media (max-width: 900px) {
+        .extract-workspace {
+          grid-template-columns: 1fr;
+        }
       }
 
       input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
@@ -2893,53 +2939,31 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
-        {/* Sidebar (desktop) */}
-        <aside className="hide-mobile" style={{
-          width: sidebarOpen ? '256px' : '48px',
-          flexShrink: 0,
-          borderRight: '0.5px solid var(--border)',
-          transition: 'width 0.2s ease',
-        }}>
-          <div className="sticky top-0" style={{ padding: '16px 12px' }}>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="w-full btn btn-ghost btn-sm"
-              style={{ justifyContent: sidebarOpen ? 'space-between' : 'center' }}
-              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
-              <span className="flex items-center gap-2">
-                <ListMusic size={13} />
-                {sidebarOpen && <span style={{ fontWeight: 500 }}>Saved exams</span>}
-              </span>
-              {sidebarOpen && <ChevronRight size={12} style={{ transform: 'rotate(180deg)', color: 'var(--text-dim)' }} />}
-            </button>
-            {sidebarOpen && renderSidebarBody(null)}
-          </div>
-        </aside>
-
-        {/* Mobile drawer */}
-        {mobileDrawerOpen && (
-          <>
-            <div className="drawer-overlay" onClick={() => setMobileDrawerOpen(false)} />
-            <div className="drawer-panel">
-              <div style={{ padding: '16px 12px' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)' }}>
-                    <ListMusic size={14} /> Saved exams
-                  </div>
-                  <button onClick={() => setMobileDrawerOpen(false)}
-                    className="btn btn-ghost btn-icon btn-sm"
-                    aria-label="Close drawer">
-                    <X size={14} />
-                  </button>
+      {/* Saved exams drawer (overlay, not persistent sidebar) */}
+      {(savedDrawerOpen || mobileDrawerOpen) && (
+        <>
+          <div className="drawer-overlay" onClick={() => { setSavedDrawerOpen(false); setMobileDrawerOpen(false); }} />
+          <div className="drawer-panel">
+            <div style={{ padding: '20px 16px' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+                  <ListMusic size={14} /> Saved exams
                 </div>
-                {renderSidebarBody(() => setMobileDrawerOpen(false))}
+                <button onClick={() => { setSavedDrawerOpen(false); setMobileDrawerOpen(false); }}
+                  className="btn btn-ghost btn-icon btn-sm"
+                  aria-label="Close drawer">
+                  <X size={14} />
+                </button>
               </div>
+              {renderSidebarBody(() => { setSavedDrawerOpen(false); setMobileDrawerOpen(false); })}
             </div>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
+      <div className="max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
         {/* Main content */}
-        <main className="flex-1 min-w-0 px-4 sm:px-8 py-6 sm:py-8">
+        <main className="px-4 sm:px-8 py-5 sm:py-6">
 
         {/* Quick start strip - dismissible */}
         {showQuickStart && (
@@ -2973,75 +2997,111 @@ export default function App() {
           </div>
         )}
 
-        {/* PDF + Save/Load toolbar */}
-        <section className="mb-8 card-elev" style={{ padding: '20px' }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* PDF upload */}
-            <div>
-              <div className="section-label mb-2">Start from a paper</div>
-              <PdfDropZone onFile={handleExamPdfDrop} parsing={pdfParsing} disabled={isCompiling || livePlaying} />
-              {pdfDetectionInfo && (
-                <div className="mt-2 flex items-center gap-1.5" style={{ fontSize: '12px', color: 'var(--success)' }}>
-                  <Check size={12} /> Loaded {pdfDetectionInfo.count} extracts
-                  {pdfDetectionInfo.marksFound && ' with marks'}
-                </div>
-              )}
-            </div>
+        {/* WorkflowHeader — stages + primary export */}
+        <WorkflowHeader
+          paperLoaded={!!pdfDetectionInfo || questions.some(q => q.intro && q.intro.trim().length > 0)}
+          extractCount={questions.length}
+          filledCount={filledCount}
+          totalMarks={totalMarks}
+          totalDuration={totalDuration}
+          isCompiling={isCompiling}
+          livePlaying={livePlaying}
+          compileDisabled={isCompiling || filledCount === 0 || livePlaying}
+          onCompile={compileAudio}
+          finalAudioUrl={finalAudioUrl}
+          finalAudioFormat={finalAudioFormat}
+          finalAudioDuration={finalAudioDuration}
+          finalAudioSize={finalAudioSize}
+          onDownload={downloadFinal}
+          onSavedDrawerOpen={() => setSavedDrawerOpen(true)}
+          savedDrawerOpen={savedDrawerOpen}
+          hasSavedExams={(cloudExams?.length || 0) + (savedExams?.length || 0)}
+          onSave={saveCurrentExam}
+          onNew={newBlankExam}
+          outputFormat={outputFormat}
+          setOutputFormat={setOutputFormat}
+          mp3Bitrate={mp3Bitrate}
+          setMp3Bitrate={setMp3Bitrate}
+        />
 
-            {/* Save / Load */}
-            <div>
-              <div className="section-label mb-2">Or resume a saved exam</div>
-              <div className="flex gap-1.5 flex-wrap">
-                <button onClick={saveExamConfig} className="btn btn-secondary btn-sm">
-                  <Save size={12} /> Save config
-                </button>
-                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                  <FolderOpen size={12} /> Load config
-                  <input type="file" accept=".json,application/json" className="hidden"
-                    onChange={e => { loadExamConfig(e.target.files[0]); e.target.value = ''; }} />
-                </label>
-                <button onClick={shareAsUrl} className="btn btn-secondary btn-sm"
-                  title="Copy a share link that loads this exam (audio files not included)">
-                  <Link2 size={12} /> Share link
-                </button>
-              </div>
-              <div className="mt-2" style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.5 }}>
-                Saves all settings except uploaded audio (which need to be re-uploaded). YouTube and Spotify clips are saved with their URLs and timestamps.
-              </div>
+
+        {/* Setup card — collapsible. Shrinks once user has audio loaded. */}
+        {setupCollapsed ? (
+          <div className="card flex items-center gap-3 mb-6" style={{ padding: '10px 14px', background: 'var(--surface-2)' }}>
+            <FileText size={13} style={{ color: 'var(--text-dim)' }} />
+            <div className="flex-1" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              {pdfDetectionInfo
+                ? <>Paper loaded · {pdfDetectionInfo.count} extracts{pdfDetectionInfo.marksFound && ' with marks'}</>
+                : <>Edit setup, load a new paper, or import / share an exam configuration.</>
+              }
             </div>
+            <button onClick={() => setSetupCollapsed(false)} className="btn btn-ghost btn-sm">
+              Open setup <ChevronDown size={11} />
+            </button>
           </div>
-        </section>
+        ) : (
+          <section className="mb-6 card-elev" style={{ padding: '18px 20px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="section-label">Setup</div>
+              <button onClick={() => setSetupCollapsed(true)} className="btn btn-ghost btn-sm" title="Collapse">
+                <ChevronUp size={11} /> Collapse
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* PDF upload */}
+              <div>
+                <div className="field-label">Start from a paper</div>
+                <PdfDropZone onFile={handleExamPdfDrop} parsing={pdfParsing} disabled={isCompiling || livePlaying} />
+                {pdfDetectionInfo && (
+                  <div className="mt-2 flex items-center gap-1.5" style={{ fontSize: '12px', color: 'var(--success)' }}>
+                    <Check size={12} /> Loaded {pdfDetectionInfo.count} extracts
+                    {pdfDetectionInfo.marksFound && ' with marks'}
+                  </div>
+                )}
+              </div>
 
-        <section className="mb-10">
-          <div className="section-label mb-3">Exam</div>
+              {/* Save / Load / Share */}
+              <div>
+                <div className="field-label">Import, export, share</div>
+                <div className="flex gap-1.5 flex-wrap">
+                  <button onClick={saveExamConfig} className="btn btn-secondary btn-sm">
+                    <Save size={12} /> Save config
+                  </button>
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
+                    <FolderOpen size={12} /> Load config
+                    <input type="file" accept=".json,application/json" className="hidden"
+                      onChange={e => { loadExamConfig(e.target.files[0]); e.target.value = ''; }} />
+                  </label>
+                  <button onClick={shareAsUrl} className="btn btn-secondary btn-sm"
+                    title="Copy a share link that loads this exam (audio files not included)">
+                    <Link2 size={12} /> Share link
+                  </button>
+                </div>
+                <div className="mt-2" style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                  Saves all settings except uploaded audio (which need to be re-uploaded).
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="mb-6">
           <input type="text" value={examTitle} onChange={e => setExamTitle(e.target.value)}
             placeholder="Untitled exam"
             className="display-font w-full bg-transparent border-none p-0"
             style={{
-              fontSize: '28px',
+              fontSize: '26px',
               fontWeight: 600,
               letterSpacing: '-0.02em',
               color: 'var(--text)',
-              paddingBottom: '8px',
+              paddingBottom: '6px',
               borderBottom: '0.5px solid var(--border)',
             }} />
-
-          {/* Compact stats dashboard */}
-          <div className="card mt-5" style={{ padding: '14px 18px' }}>
-            <div className="flex flex-wrap items-center" style={{ gap: '4px 28px' }}>
-              <StatCell label="Extracts" value={questions.length} />
-              <StatCell label="Audio loaded" value={`${filledCount} of ${questions.length}`} accent={filledCount === questions.length && questions.length > 0} />
-              {totalMarks > 0 && <StatCell label="Marks" value={totalMarks} icon={<Award size={11} />} />}
-              <StatCell label="Runtime" value={formatTime(totalDuration)} />
-              {youtubeCount > 0 && <StatCell label="YouTube" value={youtubeCount} icon={<Youtube size={11} />} />}
-              {spotifyCount > 0 && <StatCell label="Spotify" value={spotifyCount} icon={<Music size={11} />} />}
-              <div className="flex items-center gap-2 ml-auto" style={{ paddingLeft: '12px', borderLeft: '0.5px solid var(--border)' }}>
-                <label className="section-label" style={{ marginBottom: 0 }}>Reading time</label>
-                <input type="number" value={readingTime} onChange={e => setReadingTime(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="text-sm" style={{ width: '64px', padding: '4px 8px', fontSize: '13px' }} />
-                <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>sec</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 mt-3" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+            <label className="section-label" style={{ marginBottom: 0 }}>Reading time</label>
+            <input type="number" value={readingTime} onChange={e => setReadingTime(Math.max(0, parseInt(e.target.value) || 0))}
+              style={{ width: '60px', padding: '4px 8px', fontSize: '12px' }} />
+            <span>seconds</span>
           </div>
         </section>
 
@@ -3157,49 +3217,80 @@ export default function App() {
           </section>
         )}
 
-        <section>
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 className="display-font font-semibold" style={{ fontSize: '17px', letterSpacing: '-0.01em' }}>Extracts</h2>
-            <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>File · YouTube · Spotify</div>
+        {/* Two-column workspace: extract list + inspector */}
+        <section className="extract-workspace">
+          {/* Left: compact extract list */}
+          <div className="min-w-0">
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="display-font font-semibold" style={{ fontSize: '15px', letterSpacing: '-0.01em' }}>Extracts</h2>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{filledCount}/{questions.length} ready</div>
+            </div>
+
+            <div className="space-y-1.5">
+              {questions.map((q, idx) => (
+                <ExtractRow key={q.id} q={q} index={idx}
+                  selected={selectedExtractId === q.id}
+                  onSelect={setSelectedExtractId}
+                  onPreview={previewQuestion}
+                  isPreviewing={previewingId === q.id}
+                  onMoveUp={idx > 0 ? () => moveQuestion(q.id, 'up') : null}
+                  onMoveDown={idx < questions.length - 1 ? () => moveQuestion(q.id, 'down') : null}
+                  onReorder={moveQuestionTo}
+                  disabled={isCompiling || livePlaying} />
+              ))}
+
+              <button onClick={() => { addQuestion(); }} disabled={isCompiling || livePlaying}
+                className="w-full btn btn-ghost"
+                style={{
+                  padding: '12px',
+                  border: '0.5px dashed var(--border-strong)',
+                  borderRadius: 'var(--r-md)',
+                  color: 'var(--text-muted)',
+                }}>
+                <Plus size={14} /> Add extract
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {questions.map((q, idx) => (
-              <QuestionCard key={q.id} q={q} index={idx} totalQuestions={questions.length}
-                onFileUpload={handleFileUpload} onYouTubeSet={handleYouTubeSet}
-                onSpotifyTrackAdd={handleSpotifyTrackAdd}
-                spotifyConnected={!!spotifyToken}
-                onClear={clearSource} onUpdate={updateQuestion}
-                onPreview={previewQuestion} isPreviewing={previewingId === q.id}
-                onMoveUp={idx > 0 ? () => moveQuestion(q.id, 'up') : null}
-                onMoveDown={idx < questions.length - 1 ? () => moveQuestion(q.id, 'down') : null}
-                onDelete={questions.length > 1 ? () => deleteQuestion(q.id) : null}
-                onAddBelow={() => addQuestion(idx)}
-                onReorder={moveQuestionTo}
-                disabled={isCompiling || livePlaying} />
-            ))}
-
-            <button onClick={() => addQuestion()} disabled={isCompiling || livePlaying}
-              className="w-full btn btn-ghost"
-              style={{
-                padding: '14px',
-                border: '0.5px dashed var(--border-strong)',
-                borderRadius: 'var(--r-lg)',
-                color: 'var(--text-muted)',
-              }}>
-              <Plus size={14} /> Add extract
-            </button>
-          </div>
+          {/* Right: inspector for selected extract */}
+          <aside style={{
+            position: 'sticky',
+            top: '76px',
+            maxHeight: 'calc(100vh - 92px)',
+            overflowY: 'auto',
+            background: 'var(--surface)',
+            border: '0.5px solid var(--border)',
+            borderRadius: 'var(--r-lg)',
+            alignSelf: 'start',
+          }}>
+            <ExtractInspector
+              q={selectedExtract}
+              index={selectedExtract ? questions.findIndex(x => x.id === selectedExtract.id) : -1}
+              totalQuestions={questions.length}
+              onUpdate={updateQuestion}
+              onClear={clearSource}
+              onDelete={selectedExtract && questions.length > 1 ? () => deleteQuestion(selectedExtract.id) : null}
+              onPreview={previewQuestion}
+              isPreviewing={selectedExtract ? previewingId === selectedExtract.id : false}
+              onFileUpload={handleFileUpload}
+              onYouTubeSet={handleYouTubeSet}
+              onSpotifyTrackAdd={handleSpotifyTrackAdd}
+              spotifyConnected={!!spotifyToken}
+              disabled={isCompiling || livePlaying}
+            />
+          </aside>
         </section>
 
-        <section className="mt-12 paper ink-shadow" style={{ borderRadius: '4px', padding: '32px' }}>
-          <div className="flex items-baseline justify-between mb-6 flex-wrap gap-4">
+        {/* Preview controls + advanced compile options (compact, no longer the primary "Compile" — that's in WorkflowHeader now) */}
+        <section className="mt-8 card-elev" style={{ borderRadius: 'var(--r-lg)', padding: '20px 22px' }}>
+          <div className="flex items-baseline justify-between mb-4 flex-wrap gap-3">
             <div>
-              <div className="mono-font text-xs uppercase tracking-widest opacity-60 mb-2">Output</div>
-              <h2 className="display-font text-2xl font-semibold">Compile & Export</h2>
+              <div className="section-label mb-1">Preview &amp; compile options</div>
+              <h2 className="display-font font-semibold" style={{ fontSize: '15px', letterSpacing: '-0.01em' }}>Audio output</h2>
             </div>
-            <label className="flex items-center gap-2 mono-font text-xs uppercase tracking-wider opacity-60 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               <input type="checkbox" checked={shortReadingForTesting} onChange={e => setShortReadingForTesting(e.target.checked)} />
+
               Skip reading time (testing)
             </label>
           </div>
@@ -4539,6 +4630,547 @@ function HelpPanel({ onClose }) {
 }
 
 // Compact stat cell for the exam dashboard
+// ============================================================
+// WorkflowHeader — staged progress strip across top of workspace
+// ============================================================
+function WorkflowHeader({ paperLoaded, extractCount, filledCount, totalMarks, totalDuration, isCompiling, livePlaying, compileDisabled, onCompile, finalAudioUrl, finalAudioFormat, finalAudioDuration, finalAudioSize, onDownload, onSavedDrawerOpen, savedDrawerOpen, hasSavedExams, onSave, onNew, outputFormat, setOutputFormat, mp3Bitrate, setMp3Bitrate }) {
+  const allReady = extractCount > 0 && filledCount === extractCount;
+  const stages = [
+    { key: 'paper', label: 'Paper', state: paperLoaded ? 'done' : 'optional' },
+    { key: 'extracts', label: 'Extracts', state: extractCount > 0 ? 'done' : 'pending', detail: extractCount > 0 ? `${extractCount}` : null },
+    { key: 'audio', label: 'Audio', state: filledCount === 0 ? 'pending' : (filledCount === extractCount ? 'done' : 'active'), detail: extractCount > 0 ? `${filledCount}/${extractCount}` : null },
+    { key: 'export', label: 'Export', state: allReady ? 'active' : 'pending' },
+  ];
+  return (
+    <div className="card" style={{ padding: '14px 18px', marginBottom: '20px' }}>
+      <div className="flex items-center gap-4 flex-wrap">
+        {/* Stage chips */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {stages.map((s, i) => (
+            <React.Fragment key={s.key}>
+              <div className="flex items-center gap-1.5" style={{
+                padding: '4px 10px',
+                borderRadius: 999,
+                background: s.state === 'done' ? 'var(--success-tint)' : s.state === 'active' ? 'var(--accent-tint-strong)' : 'transparent',
+                color: s.state === 'done' ? 'var(--success)' : s.state === 'active' ? 'var(--accent-soft)' : 'var(--text-dim)',
+                border: '0.5px solid ' + (s.state === 'done' ? 'var(--success-border)' : s.state === 'active' ? 'var(--accent-border)' : 'var(--border)'),
+                fontSize: '12px',
+                fontWeight: 500,
+              }}>
+                {s.state === 'done' ? <Check size={11} /> : <div style={{ width: 6, height: 6, borderRadius: 99, background: s.state === 'active' ? 'var(--accent-soft)' : 'var(--text-faint)' }} />}
+                {s.label}
+                {s.detail && <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 2 }}>· {s.detail}</span>}
+              </div>
+              {i < stages.length - 1 && <div style={{ width: 14, height: 1, background: 'var(--border)' }} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Secondary stats */}
+        <div className="flex items-center gap-3 ml-auto flex-wrap" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+          {totalMarks > 0 && <span><span style={{ color: 'var(--text)', fontWeight: 500 }}>{totalMarks}</span> marks</span>}
+          {totalDuration > 0 && <span><span style={{ color: 'var(--text)', fontWeight: 500 }}>{formatTime(totalDuration)}</span> runtime</span>}
+        </div>
+
+        {/* Saved / New / Save buttons */}
+        <div className="flex items-center gap-1" style={{ paddingLeft: '12px', borderLeft: '0.5px solid var(--border)' }}>
+          <button onClick={onSavedDrawerOpen}
+            className={savedDrawerOpen ? "btn btn-secondary btn-sm" : "btn btn-ghost btn-sm"}
+            title="Saved exams">
+            <FolderOpen size={12} />
+            <span className="hide-mobile">Saved</span>
+            {hasSavedExams && <span className="pill pill-muted" style={{ padding: '0 6px', fontSize: '10px' }}>{hasSavedExams}</span>}
+          </button>
+          <button onClick={onNew} className="btn btn-ghost btn-sm" title="Start a new blank exam">
+            <Plus size={12} /> <span className="hide-mobile">New</span>
+          </button>
+          <button onClick={onSave} className="btn btn-ghost btn-sm" title="Save current exam">
+            <Save size={12} /> <span className="hide-mobile">Save</span>
+          </button>
+        </div>
+
+        {/* Primary export action */}
+        <div className="flex items-stretch" style={{
+          border: '0.5px solid ' + (allReady ? 'var(--accent-border)' : 'var(--border)'),
+          borderRadius: 'var(--r-md)',
+          overflow: 'hidden',
+        }}>
+          <select value={outputFormat} onChange={e => setOutputFormat(e.target.value)}
+            disabled={isCompiling || livePlaying || !allReady}
+            style={{
+              padding: '8px 28px 8px 12px',
+              border: 'none',
+              background: 'var(--surface-elev)',
+              color: 'var(--text)',
+              borderRight: '0.5px solid var(--border)',
+              borderRadius: 0,
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              fontSize: '12px',
+              fontWeight: 500,
+              backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a8afbf' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+            }}>
+            <option value="mp3">MP3</option>
+            <option value="wav">WAV</option>
+            <option value="ogg">OGG</option>
+          </select>
+          <button onClick={onCompile} disabled={compileDisabled}
+            className="flex items-center gap-1.5 px-4"
+            style={{
+              background: allReady ? 'var(--accent-strong)' : 'var(--surface-elev)',
+              color: allReady ? 'var(--accent-bg-on)' : 'var(--text-dim)',
+              fontSize: '13px',
+              fontWeight: 600,
+              border: 'none',
+              boxShadow: allReady ? '0 1px 0 rgba(255,255,255,0.18) inset' : 'none',
+              cursor: compileDisabled ? 'not-allowed' : 'pointer',
+            }}
+            title={!allReady ? `Add audio to all ${extractCount} extracts first` : 'Compile and download'}>
+            <Download size={14} />
+            {isCompiling ? 'Compiling…' : 'Compile'}
+          </button>
+        </div>
+
+        {finalAudioUrl && (
+          <button onClick={onDownload} className="btn btn-secondary btn-sm" title="Download last compiled file">
+            <FileAudio size={12} />
+            {finalAudioFormat?.toUpperCase()} · {formatTime(finalAudioDuration)}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ExtractRow — compact, scannable row in the extract list
+// ============================================================
+function ExtractRow({ q, index, selected, onSelect, onPreview, isPreviewing, onMoveUp, onMoveDown, onReorder, disabled }) {
+  const hasAudio = !!q.source;
+  const source = q.source;
+  let duration = null;
+  if (source?.kind === 'file' && source.buffer) {
+    const trimStart = source.trimStart || 0;
+    const trimEnd = source.trimEnd != null ? source.trimEnd : source.buffer.duration;
+    duration = trimEnd - trimStart;
+  } else if (source) {
+    duration = source.duration;
+  }
+  const sourceLabel = hasAudio ? (
+    source.kind === 'file' ? source.name :
+    source.kind === 'youtube' ? `YouTube · ${source.videoId}` :
+    source.kind === 'spotify' ? `${source.name}${source.artists ? ' — ' + source.artists : ''}` : ''
+  ) : null;
+  const SourceIcon = !hasAudio ? null :
+    source.kind === 'youtube' ? Youtube : Music;
+
+  return (
+    <div
+      onClick={() => onSelect(q.id)}
+      draggable={!disabled}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/x-extract-index', String(index));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('text/x-extract-index')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDrop={(e) => {
+        const fromIdx = e.dataTransfer.getData('text/x-extract-index');
+        if (fromIdx !== '') {
+          e.preventDefault();
+          e.stopPropagation();
+          const from = parseInt(fromIdx);
+          if (onReorder) onReorder(from, index);
+        }
+      }}
+      className="group"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '10px 14px',
+        background: selected ? 'var(--accent-tint)' : 'var(--surface)',
+        border: '0.5px solid ' + (selected ? 'var(--accent-border)' : 'var(--border)'),
+        borderRadius: 'var(--r-md)',
+        cursor: 'pointer',
+        transition: 'background 0.12s, border-color 0.12s',
+        position: 'relative',
+      }}>
+      {/* Status strip on the left */}
+      <div style={{
+        width: 3,
+        alignSelf: 'stretch',
+        background: hasAudio ? 'var(--success)' : 'var(--warning)',
+        borderRadius: 2,
+        flexShrink: 0,
+        opacity: hasAudio ? 0.85 : 0.7,
+      }} />
+
+      {/* Drag handle + number */}
+      <div className="flex items-center gap-2 flex-shrink-0" style={{ width: '48px' }}>
+        <span className="opacity-0 group-hover:opacity-100" style={{ color: 'var(--text-faint)', transition: 'opacity 0.15s', cursor: 'grab' }} title="Drag to reorder">
+          <GripVertical size={12} />
+        </span>
+        <span className="display-font" style={{ fontSize: '15px', fontWeight: 600, color: selected ? 'var(--accent-soft)' : 'var(--text)' }}>
+          {index + 1}
+        </span>
+      </div>
+
+      {/* Title + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'var(--text)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>{q.label || `Extract ${index + 1}`}</span>
+          {q.marks != null && (
+            <span style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0 }}>
+              · {q.marks} mark{q.marks === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5" style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+          {hasAudio ? (
+            <>
+              {SourceIcon && <SourceIcon size={10} style={{ flexShrink: 0, color: source.kind === 'spotify' ? '#1db954' : 'var(--text-dim)' }} />}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sourceLabel}</span>
+              {duration != null && <span style={{ flexShrink: 0 }}>· {formatTime(duration)}</span>}
+              <span style={{ flexShrink: 0 }}>· {q.plays}× plays</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle size={10} style={{ color: 'var(--warning)' }} />
+              <span style={{ color: 'var(--warning)' }}>Audio needed</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Status pill (hide on selection — inspector shows it) */}
+      {!selected && (
+        <span className={hasAudio ? "pill pill-success hide-mobile" : "pill pill-warning hide-mobile"} style={{ flexShrink: 0 }}>
+          {hasAudio ? <><Check size={10} /> Ready</> : <>Needs audio</>}
+        </span>
+      )}
+
+      {/* Preview button */}
+      <button onClick={(e) => { e.stopPropagation(); onPreview(q); }}
+        disabled={!hasAudio || disabled}
+        className="btn btn-ghost btn-icon btn-sm flex-shrink-0"
+        title="Preview this extract">
+        {isPreviewing ? <Pause size={13} /> : <Play size={13} />}
+      </button>
+
+      {/* Reorder */}
+      <div className="flex flex-col flex-shrink-0 hide-mobile">
+        <button onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }} disabled={disabled || !onMoveUp}
+          className="btn btn-ghost"
+          style={{ padding: '0 4px', minHeight: 0 }} title="Move up">
+          <ChevronUp size={11} />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }} disabled={disabled || !onMoveDown}
+          className="btn btn-ghost"
+          style={{ padding: '0 4px', minHeight: 0 }} title="Move down">
+          <ChevronDown size={11} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ExtractInspector — right panel with all details for selected extract
+// ============================================================
+function ExtractInspector({
+  q, index, totalQuestions,
+  onUpdate, onClear, onDelete, onPreview, isPreviewing,
+  onFileUpload, onYouTubeSet, onSpotifyTrackAdd, spotifyConnected,
+  disabled,
+}) {
+  const [mode, setMode] = useState('file');
+  const [dragOver, setDragOver] = useState(false);
+  const [ytUrl, setYtUrl] = useState('');
+  const [ytStart, setYtStart] = useState('');
+  const [ytEnd, setYtEnd] = useState('');
+  const [spUrl, setSpUrl] = useState('');
+  const [spStart, setSpStart] = useState('');
+  const [spEnd, setSpEnd] = useState('');
+  const fileInputRef = useRef(null);
+
+  if (!q) {
+    return (
+      <div style={{ padding: '32px 24px', color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6 }}>
+        <div style={{
+          width: 44, height: 44,
+          borderRadius: 'var(--r-md)',
+          background: 'var(--surface-elev)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '14px',
+          color: 'var(--text-dim)',
+        }}>
+          <ListMusic size={20} />
+        </div>
+        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)', marginBottom: '6px' }}>No extract selected</div>
+        <div>Select an extract from the list to edit its announcement, audio source, and timing.</div>
+      </div>
+    );
+  }
+
+  const hasAudio = !!q.source;
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) onFileUpload(q.id, file);
+  };
+  const ytdlpCommand = q.source?.kind === 'youtube'
+    ? `yt-dlp -x --audio-format mp3 --download-sections "*${q.source.startStr || formatTime(q.source.start)}-${q.source.endStr || formatTime(q.source.end)}" "${q.source.url}" -o "extract_${q.id}.%(ext)s"`
+    : '';
+
+  return (
+    <div style={{ padding: '20px 22px' }}>
+      {/* Header: number + status + actions */}
+      <div className="flex items-center gap-2 mb-4">
+        <div style={{
+          width: 32, height: 32,
+          borderRadius: 'var(--r-sm)',
+          background: 'var(--accent-tint-strong)',
+          border: '0.5px solid var(--accent-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--accent-soft)',
+          fontFamily: "'Geist', sans-serif",
+          fontWeight: 600,
+          fontSize: '14px',
+          flexShrink: 0,
+        }}>{index + 1}</div>
+        <div className="flex-1 min-w-0">
+          <div className="section-label">Extract {index + 1} of {totalQuestions}</div>
+          <span className={hasAudio ? "pill pill-success" : "pill pill-warning"} style={{ marginTop: 2 }}>
+            {hasAudio ? <><Check size={10} /> Ready</> : <>Needs audio</>}
+          </span>
+        </div>
+        <button onClick={() => onPreview(q)} disabled={!hasAudio || disabled}
+          className={isPreviewing ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
+          title="Preview this extract">
+          {isPreviewing ? <Pause size={12} /> : <Play size={12} />} Preview
+        </button>
+        <button onClick={onDelete} disabled={disabled || !onDelete}
+          className="btn btn-danger-ghost btn-icon btn-sm" title="Delete extract">
+          <Trash2 size={13} />
+        </button>
+      </div>
+
+      {/* Title */}
+      <div className="mb-4">
+        <label className="field-label">Title</label>
+        <input type="text" value={q.label} onChange={e => onUpdate(q.id, 'label', e.target.value)} disabled={disabled}
+          placeholder={`Extract ${index + 1}`} className="w-full" />
+      </div>
+
+      {/* Announcement */}
+      <div className="mb-4">
+        <label className="field-label">Announcement</label>
+        <textarea value={q.intro} onChange={e => onUpdate(q.id, 'intro', e.target.value)} disabled={disabled} rows={3}
+          className="w-full" style={{ resize: 'vertical', fontSize: '13px', lineHeight: 1.5 }} />
+      </div>
+
+      {/* Timing grid */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div>
+          <label className="field-label flex items-center gap-1.5"><Repeat size={11} /> Plays</label>
+          <input type="number" min="1" max="10" value={q.plays}
+            onChange={e => onUpdate(q.id, 'plays', Math.max(1, parseInt(e.target.value) || 1))} disabled={disabled} className="w-full" />
+        </div>
+        <div>
+          <label className="field-label flex items-center gap-1.5"><Award size={11} /> Marks</label>
+          <input type="number" min="0" value={q.marks ?? ''} placeholder="—"
+            onChange={e => onUpdate(q.id, 'marks', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0))}
+            disabled={disabled} className="w-full" />
+        </div>
+        <div>
+          <label className="field-label flex items-center gap-1.5"><Clock size={11} /> Gap between plays (s)</label>
+          <input type="number" min="0" value={q.gapBetweenPlays}
+            onChange={e => onUpdate(q.id, 'gapBetweenPlays', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full" />
+        </div>
+        <div>
+          <label className="field-label flex items-center gap-1.5"><ChevronRight size={11} /> Gap after (s)</label>
+          <input type="number" min="0" value={q.gapAfter}
+            onChange={e => onUpdate(q.id, 'gapAfter', Math.max(0, parseInt(e.target.value) || 0))} disabled={disabled} className="w-full" />
+        </div>
+      </div>
+
+      {/* Audio source */}
+      <div className="section-label mb-2" style={{ marginTop: '4px' }}>Audio source</div>
+      {q.source ? (
+        <div className="drop-zone has-source" style={{ padding: '12px 14px' }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div style={{
+                width: 30, height: 30,
+                background: q.source.kind === 'spotify' ? 'rgba(29,185,84,0.12)' : 'var(--accent-tint-strong)',
+                border: '0.5px solid ' + (q.source.kind === 'spotify' ? 'rgba(29,185,84,0.3)' : 'var(--accent-border)'),
+                borderRadius: 'var(--r-sm)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {q.source.kind === 'file' && <Music size={14} style={{ color: 'var(--accent-soft)' }} />}
+                {q.source.kind === 'youtube' && <Youtube size={14} style={{ color: 'var(--accent-soft)' }} />}
+                {q.source.kind === 'spotify' && <Music size={14} style={{ color: '#1db954' }} />}
+              </div>
+              <div className="min-w-0">
+                <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {q.source.kind === 'file' && q.source.name}
+                  {q.source.kind === 'youtube' && `YouTube · ${q.source.videoId}`}
+                  {q.source.kind === 'spotify' && q.source.name}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '1px' }}>
+                  {q.source.kind === 'file' && (() => {
+                    const trimStart = q.source.trimStart || 0;
+                    const trimEnd = q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration;
+                    const playDur = trimEnd - trimStart;
+                    return <>{formatTime(playDur)} · {q.plays}× = {formatTime(playDur * q.plays + q.gapBetweenPlays * (q.plays - 1))}</>;
+                  })()}
+                  {q.source.kind === 'youtube' && <>{q.source.startStr || formatTime(q.source.start)} → {q.source.endStr || formatTime(q.source.end)} · {q.plays}×</>}
+                  {q.source.kind === 'spotify' && <>{q.source.startStr} → {q.source.endStr} · {q.plays}×{q.source.previewUrl && q.source.end <= 30 && <span style={{ color: 'var(--success)', marginLeft: 4 }}>· exportable</span>}</>}
+                </div>
+              </div>
+            </div>
+            <button onClick={() => onClear(q.id)} disabled={disabled}
+              className="btn btn-danger-ghost btn-icon btn-sm" title="Remove source">
+              <Trash2 size={12} />
+            </button>
+          </div>
+          {q.source.kind === 'youtube' && (
+            <details className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--border)' }}>
+              <summary style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <span style={{ color: 'var(--text-dim)' }}>▸</span> Export this clip with yt-dlp
+              </summary>
+              <div className="mt-2 flex items-center gap-1.5">
+                <code className="mono-font flex-1 overflow-x-auto" style={{ fontSize: '10px', padding: '6px 8px', background: 'var(--code-bg)', color: 'var(--code-text)', borderRadius: 'var(--r-sm)' }}>{ytdlpCommand}</code>
+                <button onClick={() => navigator.clipboard.writeText(ytdlpCommand)}
+                  className="btn btn-secondary btn-icon btn-sm" title="Copy">
+                  <Copy size={11} />
+                </button>
+              </div>
+            </details>
+          )}
+          {q.source.kind === 'file' && q.source.buffer && (
+            <details className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--border)' }} open={(q.source.trimStart || 0) > 0 || (q.source.trimEnd != null && q.source.trimEnd < q.source.buffer.duration - 0.01)}>
+              <summary style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <span style={{ color: 'var(--text-dim)' }}>▸</span> Trim audio
+              </summary>
+              <WaveformTrimmer source={q.source} disabled={disabled}
+                onUpdate={(s, e) => onUpdate(q.id, 'source', { ...q.source, trimStart: s, trimEnd: e })} />
+            </details>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div className="flex gap-1.5 mb-3">
+            <button onClick={() => setMode('file')} className={`tab ${mode === 'file' ? 'active' : ''}`} disabled={disabled}>
+              <Upload size={11} className="inline mr-1" /> File
+            </button>
+            <button onClick={() => setMode('youtube')} className={`tab ${mode === 'youtube' ? 'active' : ''}`} disabled={disabled}>
+              <Youtube size={11} className="inline mr-1" /> YouTube
+            </button>
+            <button onClick={() => setMode('spotify')} className={`tab ${mode === 'spotify' ? 'active' : ''}`} disabled={disabled}>
+              <Music size={11} className="inline mr-1" /> Spotify
+            </button>
+          </div>
+
+          {mode === 'file' && (
+            <div className="drop-zone text-center"
+              style={{
+                padding: '24px 16px',
+                background: dragOver ? 'var(--accent-tint-strong)' : 'var(--surface-2)',
+                borderColor: dragOver ? 'var(--accent-border)' : 'var(--border-strong)',
+              }}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}>
+              <button onClick={() => fileInputRef.current?.click()} disabled={disabled}
+                className="btn btn-ghost"
+                style={{ background: 'transparent' }}>
+                <Upload size={14} /> Drop audio or click to choose
+              </button>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>MP3, WAV, M4A</div>
+              <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={e => onFileUpload(q.id, e.target.files[0])} />
+            </div>
+          )}
+
+          {mode === 'youtube' && (
+            <div style={{ background: 'var(--surface-2)', border: '0.5px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px' }}>
+              <label className="field-label">URL</label>
+              <input type="text" value={ytUrl} onChange={e => setYtUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…" className="w-full mb-2" disabled={disabled} />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="field-label">Start</label>
+                  <input type="text" value={ytStart} onChange={e => setYtStart(e.target.value)} placeholder="0:45" className="w-full" disabled={disabled} />
+                </div>
+                <div>
+                  <label className="field-label">End</label>
+                  <input type="text" value={ytEnd} onChange={e => setYtEnd(e.target.value)} placeholder="2:15" className="w-full" disabled={disabled} />
+                </div>
+              </div>
+              <button onClick={() => {
+                onYouTubeSet(q.id, { url: ytUrl, startStr: ytStart, endStr: ytEnd });
+                setYtUrl(''); setYtStart(''); setYtEnd('');
+              }} disabled={disabled || !ytUrl}
+                className="btn btn-primary btn-sm w-full mt-3">
+                Add YouTube clip
+              </button>
+            </div>
+          )}
+
+          {mode === 'spotify' && (
+            <div style={{ background: 'var(--surface-2)', border: '0.5px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px' }}>
+              {!spotifyConnected ? (
+                <div className="text-center py-2" style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Connect Spotify in <strong style={{ color: 'var(--text)' }}>Voice &amp; API</strong> (header) first.
+                </div>
+              ) : (
+                <>
+                  <label className="field-label">Spotify track</label>
+                  <input type="text" value={spUrl} onChange={e => setSpUrl(e.target.value)}
+                    placeholder="https://open.spotify.com/track/…" className="w-full mb-2" disabled={disabled} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="field-label">Start</label>
+                      <input type="text" value={spStart} onChange={e => setSpStart(e.target.value)} placeholder="0:00" className="w-full" disabled={disabled} />
+                    </div>
+                    <div>
+                      <label className="field-label">End</label>
+                      <input type="text" value={spEnd} onChange={e => setSpEnd(e.target.value)} placeholder="2:15" className="w-full" disabled={disabled} />
+                    </div>
+                  </div>
+                  <button onClick={async () => {
+                    await onSpotifyTrackAdd(q.id, spUrl, spStart, spEnd);
+                    setSpUrl(''); setSpStart(''); setSpEnd('');
+                  }} disabled={disabled || !spUrl}
+                    className="btn btn-primary btn-sm w-full mt-3">
+                    Add Spotify clip
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatCell({ label, value, icon, accent }) {
   return (
     <div className="flex items-center gap-2" style={{ paddingTop: '4px', paddingBottom: '4px' }}>

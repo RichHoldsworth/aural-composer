@@ -4,21 +4,21 @@ import { supabase, getMyProfile, listExams, saveExam as supaSaveExam, deleteExam
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
-  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. This extract will be played three times.', source: null },
-  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. This extract will be played three times.', source: null },
-  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. This extract will be played three times.', source: null },
-  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. This extract will be played three times.', source: null },
-  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. This extract will be played three times.', source: null },
-  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
-  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. This extract will be played three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. This extract will be played three times.', source: null },
+  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 1. You will hear this extract three times.', source: null },
+  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 2. You will hear this extract three times.', source: null },
+  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Extract 3. You will hear this extract three times.', source: null },
+  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 4. You will hear this extract three times.', source: null },
+  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 5. You will hear this extract three times.', source: null },
+  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Extract 6. You will hear this extract two times.', source: null },
+  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Extract 7. You will hear this extract three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Extract 8. You will hear this extract three times. This is the final extract.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Enter your opening exam instructions here. Set the reading (if included) time above.',
-  postReading: 'Delete if not using: Your five minutes of reading time is now over. The listening section will now begin.',
+  opening: 'This is the Music listening examination. You will now have five minutes to read through all of the listening questions. You may not write anything during this time.',
+  postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
-  betweenPlays: 'Here is the extract for the {ord}{final} time.',
+  betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
   ending: 'This is the end of the listening section of the examination.',
 };
 
@@ -482,8 +482,8 @@ export default function App() {
   };
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(0);
-  const [examTitle, setExamTitle] = useState('Enter you exam title here');
+  const [readingTime, setReadingTime] = useState(300);
+  const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1367,7 +1367,7 @@ export default function App() {
   const testVoice = async () => {
     setTtsTestStatus('loading');
     try {
-      await speakLive('This is a test of the examiner voice. This extract will be played three times.');
+      await speakLive('This is a test of the examiner voice. You will hear this extract three times.');
       setTtsTestStatus('ok');
       setTimeout(() => setTtsTestStatus(null), 2000);
     } catch (err) {
@@ -2176,18 +2176,224 @@ export default function App() {
   };
 
   // ===== Auth gating: show auth screen / waiting-for-approval / app =====
+  // Style content must render in every branch, since the auth/pending screens render before
+  // the main app and otherwise wouldn't see the CSS variables and utility classes.
+  const globalStyles = (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+      body { margin: 0; background: var(--bg-base); }
+
+      :root, [data-theme="dark"] {
+        --bg-base: #0b0b0f;
+        --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%);
+        --surface: rgba(255,255,255,0.03);
+        --surface-2: rgba(255,255,255,0.02);
+        --surface-elev: rgba(255,255,255,0.06);
+        --border: rgba(255,255,255,0.08);
+        --border-strong: rgba(255,255,255,0.14);
+        --text: #f0f0f3;
+        --text-muted: #8a8a96;
+        --text-dim: #5b5b65;
+        --text-faint: #4f4f57;
+        --accent: #6366f1;
+        --accent-soft: #818cf8;
+        --accent-bg-on: #ffffff;
+        --accent-tint: rgba(99,102,241,0.08);
+        --accent-tint-strong: rgba(99,102,241,0.18);
+        --accent-border: rgba(99,102,241,0.25);
+        --accent-glow: rgba(99,102,241,0.15);
+        --accent2: #22d3ee;
+        --accent2-tint: rgba(34,211,238,0.15);
+        --header-bg: rgba(255,255,255,0.02);
+        --input-bg: rgba(255,255,255,0.03);
+        --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.08);
+        --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3);
+        --ink: #2a2520;
+        --waveform-bg: rgba(0,0,0,0.25);
+        --code-bg: #0a0a0e;
+        --code-text: #d5d5dc;
+        --scrollbar: rgba(255,255,255,0.1);
+        --scrollbar-hover: rgba(255,255,255,0.18);
+      }
+
+      [data-theme="light"] {
+        --bg-base: #f0eef0;
+        --bg-gradient: radial-gradient(ellipse 1400px 900px at top left, #e8e4f5 0%, #f0eef0 50%, #ebe9eb 100%);
+        --surface: #ffffff;
+        --surface-2: #f5f5f3;
+        --surface-elev: rgba(0,0,0,0.04);
+        --border: rgba(0,0,0,0.12);
+        --border-strong: rgba(0,0,0,0.22);
+        --text: #18181b;
+        --text-muted: #5f5f64;
+        --text-dim: #8b8b91;
+        --text-faint: #b9b9bd;
+        --accent: #4f46e5;
+        --accent-soft: #6366f1;
+        --accent-bg-on: #ffffff;
+        --accent-tint: rgba(79,70,229,0.06);
+        --accent-tint-strong: rgba(79,70,229,0.12);
+        --accent-border: rgba(79,70,229,0.3);
+        --accent-glow: rgba(79,70,229,0.15);
+        --accent2: #0891b2;
+        --accent2-tint: rgba(8,145,178,0.1);
+        --header-bg: rgba(255,255,255,0.7);
+        --input-bg: #ffffff;
+        --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.08);
+        --logo-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(79,70,229,0.25);
+        --ink: #f0f0f3;
+        --waveform-bg: rgba(0,0,0,0.04);
+        --code-bg: #1a1a1f;
+        --code-text: #f0f0f3;
+        --scrollbar: rgba(0,0,0,0.12);
+        --scrollbar-hover: rgba(0,0,0,0.2);
+      }
+
+      .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
+      .mono-font { font-family: 'Geist Mono', 'Menlo', monospace; }
+
+      .accent { color: var(--accent-soft); }
+      .accent-bg { background: var(--accent); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
+      .accent2 { color: var(--accent2); }
+
+      .paper { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%); }
+      .hairline { border: 0.5px solid var(--border); }
+      .ink-shadow { box-shadow: var(--shadow-card); }
+
+      input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
+        background: var(--input-bg);
+        border: 0.5px solid var(--border);
+        padding: 7px 11px;
+        font-family: inherit;
+        color: var(--text);
+        border-radius: 6px;
+        transition: all 0.15s;
+        font-size: 14px;
+      }
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      input::placeholder, textarea::placeholder { color: var(--text-dim); }
+
+      button { transition: all 0.15s; cursor: pointer; }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .question-card {
+        transition: all 0.2s;
+        background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+        border: 0.5px solid var(--border);
+      }
+      .question-card:hover {
+        border-color: var(--border-strong);
+        transform: translateY(-1px);
+      }
+
+      .drop-zone {
+        background: var(--surface-2);
+        border: 1px dashed var(--border-strong);
+        transition: all 0.15s;
+      }
+      .drop-zone.has-source {
+        background: linear-gradient(180deg, var(--accent-tint) 0%, var(--accent-tint) 100%);
+        border: 0.5px solid var(--accent-border);
+        border-style: solid;
+      }
+
+      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+      .progress-bar {
+        background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 50%, var(--accent) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 2s linear infinite;
+      }
+
+      .tab {
+        padding: 6px 12px;
+        border: 0.5px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text-muted);
+        border-radius: 6px;
+      }
+      .tab.active {
+        background: var(--accent);
+        color: var(--accent-bg-on);
+        border-color: var(--accent);
+        box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
+      }
+
+      .hover-glow:hover { background: var(--surface-elev) !important; }
+
+      .yt-hidden { position: fixed; bottom: -200px; right: 10px; opacity: 0.01; pointer-events: none; }
+
+      details > summary { list-style: none; cursor: pointer; }
+      details > summary::-webkit-details-marker { display: none; }
+
+      input[type="range"] { background: transparent; padding: 0; border: none; }
+      input[type="range"]::-webkit-slider-runnable-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
+      input[type="range"]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; margin-top: -5px; cursor: pointer; }
+      input[type="range"]::-moz-range-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
+      input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; border: none; cursor: pointer; }
+
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+      @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .drawer-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        z-index: 50; animation: fadeIn 0.2s ease;
+      }
+      .drawer-panel {
+        position: fixed; left: 0; top: 0; bottom: 0;
+        width: 280px; max-width: 85vw;
+        background: var(--bg-base);
+        border-right: 0.5px solid var(--border);
+        z-index: 51; animation: slideIn 0.2s ease;
+        overflow-y: auto;
+      }
+
+      @media (max-width: 640px) {
+        .responsive-grid-2 { grid-template-columns: 1fr !important; }
+        .responsive-grid-3 { grid-template-columns: 1fr 1fr !important; }
+        .responsive-grid-4 { grid-template-columns: 1fr 1fr !important; }
+        .hide-mobile { display: none !important; }
+        .stack-mobile { flex-direction: column !important; align-items: stretch !important; }
+        .stack-mobile > * { width: 100%; }
+      }
+      @media (min-width: 641px) {
+        .show-mobile-only { display: none !important; }
+      }
+    `}</style>
+  );
+
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-gradient)', color: 'var(--text)' }}>
-        <Loader2 size={20} className="animate-spin" />
-      </div>
+      <>
+        {globalStyles}
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-gradient)', color: 'var(--text)' }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      </>
     );
   }
   if (!session) {
-    return <AuthScreen theme={theme} toggleTheme={toggleTheme} />;
+    return (
+      <>
+        {globalStyles}
+        <AuthScreen theme={theme} toggleTheme={toggleTheme} />
+      </>
+    );
   }
   if (myProfile && !myProfile.approved) {
-    return <PendingApprovalScreen profile={myProfile} onSignOut={signOut} theme={theme} toggleTheme={toggleTheme} />;
+    return (
+      <>
+        {globalStyles}
+        <PendingApprovalScreen profile={myProfile} onSignOut={signOut} theme={theme} toggleTheme={toggleTheme} />
+      </>
+    );
   }
 
   return (
@@ -2196,196 +2402,7 @@ export default function App() {
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
       color: 'var(--text)',
     }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
-        body { margin: 0; background: var(--bg-base); }
-
-        :root, [data-theme="dark"] {
-          --bg-base: #0b0b0f;
-          --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%);
-          --surface: rgba(255,255,255,0.03);
-          --surface-2: rgba(255,255,255,0.02);
-          --surface-elev: rgba(255,255,255,0.06);
-          --border: rgba(255,255,255,0.08);
-          --border-strong: rgba(255,255,255,0.14);
-          --text: #f0f0f3;
-          --text-muted: #8a8a96;
-          --text-dim: #5b5b65;
-          --text-faint: #4f4f57;
-          --accent: #6366f1;
-          --accent-soft: #818cf8;
-          --accent-bg-on: #ffffff;
-          --accent-tint: rgba(99,102,241,0.08);
-          --accent-tint-strong: rgba(99,102,241,0.18);
-          --accent-border: rgba(99,102,241,0.25);
-          --accent-glow: rgba(99,102,241,0.15);
-          --accent2: #22d3ee;
-          --accent2-tint: rgba(34,211,238,0.15);
-          --header-bg: rgba(255,255,255,0.02);
-          --input-bg: rgba(255,255,255,0.03);
-          --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.08);
-          --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3);
-          --ink: #2a2520;
-          --waveform-bg: rgba(0,0,0,0.25);
-          --code-bg: #0a0a0e;
-          --code-text: #d5d5dc;
-          --scrollbar: rgba(255,255,255,0.1);
-          --scrollbar-hover: rgba(255,255,255,0.18);
-        }
-
-        [data-theme="light"] {
-          --bg-base: #f8f7f5;
-          --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #eef0fb 0%, #f8f7f5 60%);
-          --surface: #ffffff;
-          --surface-2: #f5f5f3;
-          --surface-elev: rgba(0,0,0,0.04);
-          --border: rgba(0,0,0,0.1);
-          --border-strong: rgba(0,0,0,0.18);
-          --text: #18181b;
-          --text-muted: #5f5f64;
-          --text-dim: #8b8b91;
-          --text-faint: #b9b9bd;
-          --accent: #4f46e5;
-          --accent-soft: #6366f1;
-          --accent-bg-on: #ffffff;
-          --accent-tint: rgba(79,70,229,0.06);
-          --accent-tint-strong: rgba(79,70,229,0.12);
-          --accent-border: rgba(79,70,229,0.3);
-          --accent-glow: rgba(79,70,229,0.15);
-          --accent2: #0891b2;
-          --accent2-tint: rgba(8,145,178,0.1);
-          --header-bg: rgba(255,255,255,0.7);
-          --input-bg: #ffffff;
-          --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.06);
-          --logo-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(79,70,229,0.25);
-          --ink: #f0f0f3;
-          --waveform-bg: rgba(0,0,0,0.04);
-          --code-bg: #1a1a1f;
-          --code-text: #f0f0f3;
-          --scrollbar: rgba(0,0,0,0.12);
-          --scrollbar-hover: rgba(0,0,0,0.2);
-        }
-
-        .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
-        .mono-font { font-family: 'Geist Mono', 'Menlo', monospace; }
-
-        .accent { color: var(--accent-soft); }
-        .accent-bg { background: var(--accent); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
-        .accent2 { color: var(--accent2); }
-
-        .paper { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%); }
-        .hairline { border: 0.5px solid var(--border); }
-        .ink-shadow { box-shadow: var(--shadow-card); }
-
-        input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
-          background: var(--input-bg);
-          border: 0.5px solid var(--border);
-          padding: 7px 11px;
-          font-family: inherit;
-          color: var(--text);
-          border-radius: 6px;
-          transition: all 0.15s;
-          font-size: 14px;
-        }
-        input:focus, textarea:focus, select:focus {
-          outline: none;
-          border-color: var(--accent);
-          box-shadow: 0 0 0 3px var(--accent-glow);
-        }
-        input::placeholder, textarea::placeholder { color: var(--text-dim); }
-
-        button { transition: all 0.15s; cursor: pointer; }
-        button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .question-card {
-          transition: all 0.2s;
-          background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
-          border: 0.5px solid var(--border);
-        }
-        .question-card:hover {
-          border-color: var(--border-strong);
-          transform: translateY(-1px);
-        }
-
-        .drop-zone {
-          background: var(--surface-2);
-          border: 1px dashed var(--border-strong);
-          transition: all 0.15s;
-        }
-        .drop-zone.has-source {
-          background: linear-gradient(180deg, var(--accent-tint) 0%, var(--accent-tint) 100%);
-          border: 0.5px solid var(--accent-border);
-          border-style: solid;
-        }
-
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        .progress-bar {
-          background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 50%, var(--accent) 100%);
-          background-size: 200% 100%;
-          animation: shimmer 2s linear infinite;
-        }
-
-        .tab {
-          padding: 6px 12px;
-          border: 0.5px solid var(--border);
-          background: var(--surface-2);
-          color: var(--text-muted);
-          border-radius: 6px;
-        }
-        .tab.active {
-          background: var(--accent);
-          color: var(--accent-bg-on);
-          border-color: var(--accent);
-          box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
-        }
-
-        .hover-glow:hover { background: var(--surface-elev) !important; }
-
-        .yt-hidden { position: fixed; bottom: -200px; right: 10px; opacity: 0.01; pointer-events: none; }
-
-        details > summary { list-style: none; cursor: pointer; }
-        details > summary::-webkit-details-marker { display: none; }
-
-        input[type="range"] { background: transparent; padding: 0; border: none; }
-        input[type="range"]::-webkit-slider-runnable-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
-        input[type="range"]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; margin-top: -5px; cursor: pointer; }
-        input[type="range"]::-moz-range-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
-        input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; border: none; cursor: pointer; }
-
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
-
-        /* Mobile drawer */
-        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .drawer-overlay {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-          z-index: 50; animation: fadeIn 0.2s ease;
-        }
-        .drawer-panel {
-          position: fixed; left: 0; top: 0; bottom: 0;
-          width: 280px; max-width: 85vw;
-          background: var(--bg-base);
-          border-right: 0.5px solid var(--border);
-          z-index: 51; animation: slideIn 0.2s ease;
-          overflow-y: auto;
-        }
-
-        /* Responsive overrides */
-        @media (max-width: 640px) {
-          .responsive-grid-2 { grid-template-columns: 1fr !important; }
-          .responsive-grid-3 { grid-template-columns: 1fr 1fr !important; }
-          .responsive-grid-4 { grid-template-columns: 1fr 1fr !important; }
-          .hide-mobile { display: none !important; }
-          .stack-mobile { flex-direction: column !important; align-items: stretch !important; }
-          .stack-mobile > * { width: 100%; }
-        }
-        @media (min-width: 641px) {
-          .show-mobile-only { display: none !important; }
-        }
-      `}</style>
+      {globalStyles}
 
       <div className="yt-hidden"><div ref={ytContainerRef}></div></div>
 
@@ -3717,7 +3734,7 @@ function AuthScreen({ theme, toggleTheme }) {
       </div>
 
       <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center', maxWidth: '380px', lineHeight: 1.6 }}>
-        A private workspace for music teachers. New accounts require approval before saving and sharing exams.
+        A private workspace for teachers preparing aural and listening exams. New accounts require approval before saving and sharing.
       </div>
     </div>
   );

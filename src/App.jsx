@@ -2201,6 +2201,9 @@ export default function App() {
       :root, [data-theme="dark"] {
         --bg-base: #0b0b0f;
         --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%);
+        --bg-image-auth: url('/bg/auth-dark.webp');
+        --bg-image-main: url('/bg/main-dark.webp');
+        --bg-overlay: linear-gradient(180deg, rgba(11,11,15,0.55) 0%, rgba(11,11,15,0.7) 100%);
         --surface: rgba(255,255,255,0.03);
         --surface-2: rgba(255,255,255,0.02);
         --surface-elev: rgba(255,255,255,0.06);
@@ -2234,6 +2237,9 @@ export default function App() {
       [data-theme="light"] {
         --bg-base: #f0eef0;
         --bg-gradient: radial-gradient(ellipse 1400px 900px at top left, #e8e4f5 0%, #f0eef0 50%, #ebe9eb 100%);
+        --bg-image-auth: url('/bg/auth-light.webp');
+        --bg-image-main: url('/bg/main-light.webp');
+        --bg-overlay: linear-gradient(180deg, rgba(240,238,240,0.6) 0%, rgba(240,238,240,0.75) 100%);
         --surface: #ffffff;
         --surface-2: #f5f5f3;
         --surface-elev: rgba(0,0,0,0.04);
@@ -2266,6 +2272,22 @@ export default function App() {
 
       .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
       .mono-font { font-family: 'Geist Mono', 'Menlo', monospace; }
+
+      /* Background-image layers for auth and main screens.
+         Image sits at the bottom with a translucent overlay on top to keep UI legible.
+         The image stays fixed while page content scrolls. */
+      .bg-image-auth {
+        background:
+          var(--bg-overlay),
+          var(--bg-image-auth) center/cover no-repeat fixed,
+          var(--bg-base);
+      }
+      .bg-image-main {
+        background:
+          var(--bg-overlay),
+          var(--bg-image-main) center/cover no-repeat fixed,
+          var(--bg-base);
+      }
 
       .accent { color: var(--accent-soft); }
       .accent-bg { background: var(--accent); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
@@ -2412,8 +2434,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen" style={{
-      background: 'var(--bg-gradient)',
+    <div className="min-h-screen bg-image-main" style={{
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
       color: 'var(--text)',
     }}>
@@ -3666,17 +3687,18 @@ function AuthScreen({ theme, toggleTheme }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{
-      background: 'var(--bg-gradient)',
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-image-auth" style={{
       color: 'var(--text)',
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
       paddingTop: '5vh',
       paddingBottom: '5vh',
+      position: 'relative',
     }}>
+
       <button onClick={toggleTheme}
         style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px',
           background: 'var(--surface)', color: 'var(--text-muted)', borderRadius: '8px',
-          border: '0.5px solid var(--border)', cursor: 'pointer' }}
+          border: '0.5px solid var(--border)', cursor: 'pointer', zIndex: 2 }}
         title="Toggle theme">
         {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
       </button>
@@ -3689,6 +3711,8 @@ function AuthScreen({ theme, toggleTheme }) {
         width: '100%',
         maxWidth: '400px',
         boxShadow: 'var(--shadow-card)',
+        position: 'relative',
+        zIndex: 1,
       }}>
         {/* Logo + title */}
         <div className="flex flex-col items-center text-center mb-7">
@@ -3788,7 +3812,7 @@ function AuthScreen({ theme, toggleTheme }) {
         </div>
       </div>
 
-      <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center', maxWidth: '380px', lineHeight: 1.6 }}>
+      <div style={{ marginTop: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.7)', textAlign: 'center', maxWidth: '380px', lineHeight: 1.6, position: 'relative', zIndex: 1, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
         A private workspace for teachers preparing aural and listening exams. New accounts require approval before saving and sharing.
       </div>
     </div>
@@ -3798,8 +3822,7 @@ function AuthScreen({ theme, toggleTheme }) {
 // ===== Pending-approval screen =====
 function PendingApprovalScreen({ profile, onSignOut, theme, toggleTheme }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{
-      background: 'var(--bg-gradient)',
+    <div className="min-h-screen flex items-center justify-center px-4 bg-image-auth" style={{
       color: 'var(--text)',
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
     }}>

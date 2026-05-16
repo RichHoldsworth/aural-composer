@@ -4,21 +4,21 @@ import { supabase, getMyProfile, listExams, saveExam as supaSaveExam, deleteExam
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
-  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. You will hear this extract three times.', source: null },
-  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. You will hear this extract three times.', source: null },
-  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. You will hear this extract three times.', source: null },
-  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. You will hear this extract three times.', source: null },
-  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. You will hear this extract three times.', source: null },
-  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
-  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. You will hear this extract three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. You will hear this extract three times. This is the final extract.', source: null },
+  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 1. You will hear this extract three times.', source: null },
+  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 2. You will hear this extract three times.', source: null },
+  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Extract 3. You will hear this extract three times.', source: null },
+  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 4. You will hear this extract three times.', source: null },
+  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 5. You will hear this extract three times.', source: null },
+  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Extract 6. You will hear this extract two times.', source: null },
+  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Extract 7. You will hear this extract three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Extract 8. You will hear this extract three times. This is the final extract.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Enter the text you want read before the questions start e.g. "This is the Music Listening and Appraising exam..."',
+  opening: 'This is the Music listening examination. You will now have five minutes to read through all of the listening questions. You may not write anything during this time.',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
-  betweenPlays: 'Here is the extract for the {ord}{final} time.',
+  betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
   ending: 'This is the end of the listening section of the examination.',
 };
 
@@ -482,8 +482,8 @@ export default function App() {
   };
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(0);
-  const [examTitle, setExamTitle] = useState('Enter your exam title here');
+  const [readingTime, setReadingTime] = useState(300);
+  const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1278,58 +1278,6 @@ export default function App() {
     localStorage.setItem('aural_theme_manual_at', String(Date.now()));
   };
 
-  // ===== Keyboard shortcuts =====
-  useEffect(() => {
-    const handler = (e) => {
-      // Ignore when typing in an input/textarea/select
-      const tag = (e.target.tagName || '').toLowerCase();
-      const isEditable = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
-      if (isEditable) return;
-      // Ignore when modifier keys are held (avoid clashing with Ctrl+F, Cmd+R, etc.)
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-      switch (e.key) {
-        case ' ':
-        case 'Spacebar':
-          e.preventDefault();
-          if (livePlaying) {
-            if (livePaused) resumeLive(); else pauseLive();
-          } else if (filledCount > 0 && !isCompiling) {
-            playLiveFull();
-          }
-          break;
-        case 'n':
-        case 'N':
-          if (livePlaying) { e.preventDefault(); skipToNextExtract(); }
-          break;
-        case 'p':
-        case 'P':
-          if (livePlaying) { e.preventDefault(); skipToPrevExtract(); }
-          break;
-        case 'k':
-        case 'K':
-          if (livePlaying) { e.preventDefault(); skipCurrentItem(); }
-          break;
-        case 'Escape':
-          if (livePlaying) { e.preventDefault(); stopAll(); }
-          else if (mobileDrawerOpen) { e.preventDefault(); setMobileDrawerOpen(false); }
-          else if (showSettings) { e.preventDefault(); setShowSettings(false); }
-          break;
-        case 't':
-        case 'T':
-          e.preventDefault();
-          toggleTheme();
-          break;
-        default:
-          break;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-    // The deps are functions defined later in the component; they're stable across renders for our purposes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [livePlaying, livePaused, filledCount, isCompiling, mobileDrawerOpen, showSettings]);
-
   const estimateSpeechDuration = (text) => {
     const words = text.trim().split(/\s+/).length;
     return (words / 150) * 60 + 0.8;
@@ -2103,6 +2051,54 @@ export default function App() {
   const youtubeCount = questions.filter(q => q.source?.kind === 'youtube').length;
   const spotifyCount = questions.filter(q => q.source?.kind === 'spotify').length;
   const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+
+  // ===== Keyboard shortcuts ===== (placed here so all referenced state/functions are defined)
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      const isEditable = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
+      if (isEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          if (livePlaying) {
+            if (livePaused) resumeLive(); else pauseLive();
+          } else if (filledCount > 0 && !isCompiling) {
+            playLiveFull();
+          }
+          break;
+        case 'n':
+        case 'N':
+          if (livePlaying) { e.preventDefault(); skipToNextExtract(); }
+          break;
+        case 'p':
+        case 'P':
+          if (livePlaying) { e.preventDefault(); skipToPrevExtract(); }
+          break;
+        case 'k':
+        case 'K':
+          if (livePlaying) { e.preventDefault(); skipCurrentItem(); }
+          break;
+        case 'Escape':
+          if (livePlaying) { e.preventDefault(); stopAll(); }
+          else if (mobileDrawerOpen) { e.preventDefault(); setMobileDrawerOpen(false); }
+          else if (showSettings) { e.preventDefault(); setShowSettings(false); }
+          break;
+        case 't':
+        case 'T':
+          e.preventDefault();
+          toggleTheme();
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livePlaying, livePaused, filledCount, isCompiling, mobileDrawerOpen, showSettings]);
 
   const renderSidebarBody = (closeAfter) => {
     const cloudEntries = cloudExams.map(e => ({

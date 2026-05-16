@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award, SkipForward, SkipBack, ChevronsRight, Square } from 'lucide-react';
+import { Upload, Play, Pause, Download, Music, Trash2, Clock, Repeat, FileAudio, ChevronRight, Settings, Youtube, Key, Mic, Loader2, Check, AlertCircle, Copy, Link2, ListMusic, ExternalLink, RefreshCw, FileText, Save, FolderOpen, Plus, ChevronUp, ChevronDown, GripVertical, Award, SkipForward, SkipBack, ChevronsRight, Square, Sun, Moon, Menu, X, LogOut, Users, Cloud, CloudOff, ShieldCheck, Mail } from 'lucide-react';
+import { supabase, getMyProfile, listExams, saveExam as supaSaveExam, deleteExam as supaDeleteExam, listAllProfiles, setUserApproved } from './supabaseClient';
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
-  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. This extract will be played three times.', source: null },
-  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. This extract will be played three times.', source: null },
-  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. This extract will be played three times.', source: null },
-  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. This extract will be played three times.', source: null },
-  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. This extract will be played three times.', source: null },
-  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. This extract will be played three times.', source: null },
-  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. This extract will be played three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. This extract will be played three times.', source: null },
+  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. You will hear this extract three times.', source: null },
+  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. You will hear this extract three times.', source: null },
+  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. You will hear this extract three times.', source: null },
+  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. You will hear this extract three times.', source: null },
+  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. You will hear this extract three times.', source: null },
+  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
+  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. You will hear this extract three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. You will hear this extract three times. This is the final extract.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'Trinity School Examination. This is the Music Listening and Appraising examination. This sound file contains extracts you will need to answer the questions.',
+  opening: 'Enter the text you want read before the questions start e.g. "This is the Music Listening and Appraising exam..."',
   postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
   betweenPlays: 'Here is the extract for the {ord}{final} time.',
@@ -157,6 +158,62 @@ function renderBetweenPlays(template, playNumber, isFinal) {
     .replace(/\{ord\}/g, ORDINAL_WORDS[playNumber] || ordinal(playNumber))
     .replace(/\{final\}/g, isFinal ? ' and final' : '');
 }
+
+function computeWaveformPeaks(audioBuffer, numBars) {
+  // Mix down all channels to mono peaks
+  const channels = audioBuffer.numberOfChannels;
+  const data = audioBuffer.getChannelData(0);
+  // Mix in other channels by averaging
+  let mixed = data;
+  if (channels > 1) {
+    mixed = new Float32Array(data.length);
+    for (let ch = 0; ch < channels; ch++) {
+      const cd = audioBuffer.getChannelData(ch);
+      for (let i = 0; i < cd.length; i++) mixed[i] += cd[i] / channels;
+    }
+  }
+  const samplesPerBar = Math.max(1, Math.floor(mixed.length / numBars));
+  const peaks = new Float32Array(numBars);
+  for (let b = 0; b < numBars; b++) {
+    let max = 0;
+    const start = b * samplesPerBar;
+    const end = Math.min(start + samplesPerBar, mixed.length);
+    for (let i = start; i < end; i++) {
+      const v = Math.abs(mixed[i]);
+      if (v > max) max = v;
+    }
+    peaks[b] = max;
+  }
+  // Return as plain array for easy JSON serialisation later if needed
+  return Array.from(peaks);
+}
+
+// Compute RMS (root mean square) loudness of an audio buffer.
+// Returns a single value 0..1 representing the average signal level.
+function computeRms(audioBuffer) {
+  const channels = audioBuffer.numberOfChannels;
+  let sumSquares = 0;
+  let count = 0;
+  for (let ch = 0; ch < channels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    // Sample every 10th value for speed — plenty for an average
+    for (let i = 0; i < data.length; i += 10) {
+      sumSquares += data[i] * data[i];
+      count++;
+    }
+  }
+  if (count === 0) return 0;
+  return Math.sqrt(sumSquares / count);
+}
+
+const kbdStyle = {
+  background: 'var(--surface-elev)',
+  border: '0.5px solid var(--border)',
+  padding: '2px 6px',
+  borderRadius: '4px',
+  fontSize: '11px',
+  color: 'var(--text)',
+};
 
 function ordinal(n) {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -359,6 +416,71 @@ function loadYouTubeAPI() {
 }
 
 export default function App() {
+  // ===== Auth state =====
+  const [authLoading, setAuthLoading] = useState(true);
+  const [session, setSession] = useState(null);
+  const [myProfile, setMyProfile] = useState(null);
+  const [cloudExams, setCloudExams] = useState([]);
+  const [cloudExamsLoading, setCloudExamsLoading] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // Set up auth listener on mount
+  useEffect(() => {
+    let unsubscribed = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (unsubscribed) return;
+      setSession(session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (unsubscribed) return;
+      setSession(session);
+    });
+    return () => { unsubscribed = true; subscription?.unsubscribe?.(); };
+  }, []);
+
+  // When session changes, fetch profile + cloud exams
+  useEffect(() => {
+    if (!session) {
+      setMyProfile(null);
+      setCloudExams([]);
+      return;
+    }
+    (async () => {
+      const profile = await getMyProfile();
+      setMyProfile(profile);
+      if (profile?.approved) {
+        setCloudExamsLoading(true);
+        try {
+          const exams = await listExams();
+          setCloudExams(exams);
+        } catch (err) {
+          console.warn('Could not load cloud exams:', err.message);
+        } finally {
+          setCloudExamsLoading(false);
+        }
+      }
+    })();
+  }, [session]);
+
+  const reloadCloudExams = async () => {
+    if (!myProfile?.approved) return;
+    setCloudExamsLoading(true);
+    try {
+      const exams = await listExams();
+      setCloudExams(exams);
+    } catch (err) {
+      console.warn('Reload failed:', err.message);
+    } finally {
+      setCloudExamsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    if (!confirm('Sign out?')) return;
+    await supabase.auth.signOut();
+  };
+
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [readingTime, setReadingTime] = useState(0);
   const [examTitle, setExamTitle] = useState('Enter your exam title here');
@@ -382,6 +504,16 @@ export default function App() {
   const [compileStatus, setCompileStatus] = useState('');
   const [finalAudioUrl, setFinalAudioUrl] = useState(null);
   const [finalAudioDuration, setFinalAudioDuration] = useState(0);
+  const [finalAudioFormat, setFinalAudioFormat] = useState(null); // 'wav' | 'mp3' | 'ogg' | 'webm'
+  const [finalAudioSize, setFinalAudioSize] = useState(0);
+  const [outputFormat, setOutputFormat] = useState(() => localStorage.getItem('aural_output_format') || 'mp3');
+  const [mp3Bitrate, setMp3Bitrate] = useState(() => parseInt(localStorage.getItem('aural_mp3_bitrate') || '192', 10));
+  const [normaliseLoudness, setNormaliseLoudness] = useState(() => localStorage.getItem('aural_normalise') !== 'false');
+  const [crossfadeMs, setCrossfadeMs] = useState(() => parseInt(localStorage.getItem('aural_crossfade') || '150', 10));
+  useEffect(() => { localStorage.setItem('aural_output_format', outputFormat); }, [outputFormat]);
+  useEffect(() => { localStorage.setItem('aural_mp3_bitrate', String(mp3Bitrate)); }, [mp3Bitrate]);
+  useEffect(() => { localStorage.setItem('aural_normalise', String(normaliseLoudness)); }, [normaliseLoudness]);
+  useEffect(() => { localStorage.setItem('aural_crossfade', String(crossfadeMs)); }, [crossfadeMs]);
   const [showSettings, setShowSettings] = useState(false);
   const [shortReadingForTesting, setShortReadingForTesting] = useState(false);
   const [livePlaying, setLivePlaying] = useState(false);
@@ -530,7 +662,16 @@ export default function App() {
       const ctx = getAudioContext();
       const arrayBuffer = await file.arrayBuffer();
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
-      setSource(questionId, { kind: 'file', name: file.name, buffer: audioBuffer, duration: audioBuffer.duration });
+      const peaks = computeWaveformPeaks(audioBuffer, 60);
+      const rms = computeRms(audioBuffer);
+      setSource(questionId, {
+        kind: 'file',
+        name: file.name,
+        buffer: audioBuffer,
+        duration: audioBuffer.duration,
+        peaks,
+        rms,
+      });
     } catch (err) {
       alert(`Could not decode audio file: ${err.message}`);
     }
@@ -749,7 +890,7 @@ export default function App() {
     } catch (e) {}
   };
 
-  // Load and decode a Spotify preview URL into an AudioBuffer (used for WAV export when clip fits in 30s preview)
+  // Load and decode a Spotify preview URL into an AudioBuffer (used for audio export when clip fits in 30s preview)
   const loadSpotifyPreviewBuffer = async (previewUrl) => {
     if (!previewUrl) return null;
     if (spotifyPreviewBufferCache.current.has(previewUrl)) return spotifyPreviewBufferCache.current.get(previewUrl);
@@ -948,52 +1089,98 @@ export default function App() {
     }
   };
 
-  const saveCurrentExam = () => {
+  const saveCurrentExam = async () => {
     const defaultName = examTitle || `Exam ${new Date().toLocaleDateString()}`;
     const name = prompt('Save this exam as:', defaultName);
     if (!name) return;
     const config = buildConfig();
+
+    // Prefer cloud if signed in & approved
+    if (myProfile?.approved) {
+      try {
+        await supaSaveExam({ name, config, shared_with_all: false });
+        await reloadCloudExams();
+        return;
+      } catch (err) {
+        alert(`Cloud save failed: ${err.message}\n\nFalling back to browser storage.`);
+      }
+    }
+
+    // Local fallback (or only mode if signed out)
     const entry = {
       id: `exam_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       savedAt: new Date().toISOString(),
       config,
     };
-    // Replace any existing entry with same name
     const filtered = savedExams.filter(x => x.name !== name);
     persistSavedExams([entry, ...filtered]);
   };
 
-  const updateExistingExam = (examId) => {
-    const idx = savedExams.findIndex(x => x.id === examId);
-    if (idx === -1) return;
-    if (!confirm(`Update "${savedExams[idx].name}" with current settings?`)) return;
-    const updated = [...savedExams];
-    updated[idx] = { ...updated[idx], config: buildConfig(), savedAt: new Date().toISOString() };
-    persistSavedExams(updated);
+  const updateExistingExam = async (entry) => {
+    if (!confirm(`Update "${entry.name}" with current settings?`)) return;
+    if (entry.kind === 'cloud') {
+      try {
+        await supaSaveExam({ id: entry.id, name: entry.name, config: buildConfig(), shared_with_all: entry.shared_with_all });
+        await reloadCloudExams();
+      } catch (err) {
+        alert(`Could not update cloud exam: ${err.message}`);
+      }
+    } else {
+      const idx = savedExams.findIndex(x => x.id === entry.id);
+      if (idx === -1) return;
+      const updated = [...savedExams];
+      updated[idx] = { ...updated[idx], config: buildConfig(), savedAt: new Date().toISOString() };
+      persistSavedExams(updated);
+    }
   };
 
-  const loadSavedExam = (examId) => {
-    const entry = savedExams.find(x => x.id === examId);
-    if (!entry) return;
+  const loadSavedExam = (entry) => {
     const anyFilled = questions.some(q => q.source);
     if (anyFilled && !confirm(`Load "${entry.name}"? Uploaded audio in the current exam will be cleared (other sources are kept).`)) return;
     applyConfig(entry.config);
   };
 
-  const renameSavedExam = (examId) => {
-    const entry = savedExams.find(x => x.id === examId);
-    if (!entry) return;
+  const renameSavedExam = async (entry) => {
     const newName = prompt('Rename to:', entry.name);
     if (!newName || newName === entry.name) return;
-    persistSavedExams(savedExams.map(x => x.id === examId ? { ...x, name: newName } : x));
+    if (entry.kind === 'cloud') {
+      try {
+        await supaSaveExam({ id: entry.id, name: newName, config: entry.config, shared_with_all: entry.shared_with_all });
+        await reloadCloudExams();
+      } catch (err) {
+        alert(`Could not rename: ${err.message}`);
+      }
+    } else {
+      persistSavedExams(savedExams.map(x => x.id === entry.id ? { ...x, name: newName } : x));
+    }
   };
 
-  const deleteSavedExam = (examId) => {
-    const entry = savedExams.find(x => x.id === examId);
-    if (!entry) return;
+  const deleteSavedExam = async (entry) => {
     if (!confirm(`Delete "${entry.name}"? This cannot be undone.`)) return;
-    persistSavedExams(savedExams.filter(x => x.id !== examId));
+    if (entry.kind === 'cloud') {
+      try {
+        await supaDeleteExam(entry.id);
+        await reloadCloudExams();
+      } catch (err) {
+        alert(`Could not delete: ${err.message}`);
+      }
+    } else {
+      persistSavedExams(savedExams.filter(x => x.id !== entry.id));
+    }
+  };
+
+  const toggleShareWithAll = async (entry) => {
+    if (entry.kind !== 'cloud') {
+      alert('Sharing is only available for cloud-saved exams. Save this exam first.');
+      return;
+    }
+    try {
+      await supaSaveExam({ id: entry.id, name: entry.name, config: entry.config, shared_with_all: !entry.shared_with_all });
+      await reloadCloudExams();
+    } catch (err) {
+      alert(`Could not change sharing: ${err.message}`);
+    }
   };
 
   const newBlankExam = () => {
@@ -1004,7 +1191,144 @@ export default function App() {
     setReadingTime(300);
   };
 
+  // ===== Share-via-URL =====
+  const [shareToastMessage, setShareToastMessage] = useState(null);
+
+  const shareAsUrl = async () => {
+    try {
+      const LZString = await loadLzString();
+      const config = buildConfig();
+      const json = JSON.stringify(config);
+      const compressed = LZString.compressToEncodedURIComponent(json);
+      const url = `${window.location.origin}${window.location.pathname}#exam=${compressed}`;
+      // Try clipboard
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareToastMessage(`Link copied · ${(url.length / 1024).toFixed(1)} KB · ${config.questions.filter(q => q.source && q.source.kind !== 'file').length} non-file sources kept, audio files not included`);
+      } catch (e) {
+        // Fallback: prompt
+        prompt('Copy this share link (audio files not included):', url);
+      }
+      setTimeout(() => setShareToastMessage(null), 6000);
+    } catch (err) {
+      alert(`Could not create share link: ${err.message}`);
+    }
+  };
+
+  // On mount, check URL hash for a shared config
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#exam=')) return;
+    const encoded = hash.slice('#exam='.length);
+    (async () => {
+      try {
+        const LZString = await loadLzString();
+        const json = LZString.decompressFromEncodedURIComponent(encoded);
+        if (!json) throw new Error('Invalid share link');
+        const config = JSON.parse(json);
+        if (!config.questions || !Array.isArray(config.questions)) throw new Error('Invalid config in link');
+        const proceed = confirm(`Load shared exam "${config.examTitle || 'Untitled'}"?\n\n${config.questions.length} extracts. Note: any uploaded audio files in the original exam are NOT included (only YouTube/Spotify references). You'll need to re-upload any local audio.\n\nThis will replace your current setup.`);
+        if (proceed) {
+          applyConfig(config);
+          // Clear hash so refreshing doesn't re-trigger
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setShareToastMessage(`Loaded shared exam · click Save in the sidebar to keep it`);
+          setTimeout(() => setShareToastMessage(null), 8000);
+        } else {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (err) {
+        alert(`Could not load shared link: ${err.message}`);
+      }
+    })();
+    // Run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('aural_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    return 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('aural_theme', theme);
+  }, [theme]);
+
+  // Listen for system theme changes (only if user hasn't set a manual preference recently)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const onChange = (e) => {
+      // Only auto-switch if the user hasn't toggled within the last 24 hours
+      const lastManual = parseInt(localStorage.getItem('aural_theme_manual_at') || '0', 10);
+      if (Date.now() - lastManual > 24 * 60 * 60 * 1000) {
+        setTheme(e.matches ? 'light' : 'dark');
+      }
+    };
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    localStorage.setItem('aural_theme_manual_at', String(Date.now()));
+  };
+
+  // ===== Keyboard shortcuts =====
+  useEffect(() => {
+    const handler = (e) => {
+      // Ignore when typing in an input/textarea/select
+      const tag = (e.target.tagName || '').toLowerCase();
+      const isEditable = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
+      if (isEditable) return;
+      // Ignore when modifier keys are held (avoid clashing with Ctrl+F, Cmd+R, etc.)
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          if (livePlaying) {
+            if (livePaused) resumeLive(); else pauseLive();
+          } else if (filledCount > 0 && !isCompiling) {
+            playLiveFull();
+          }
+          break;
+        case 'n':
+        case 'N':
+          if (livePlaying) { e.preventDefault(); skipToNextExtract(); }
+          break;
+        case 'p':
+        case 'P':
+          if (livePlaying) { e.preventDefault(); skipToPrevExtract(); }
+          break;
+        case 'k':
+        case 'K':
+          if (livePlaying) { e.preventDefault(); skipCurrentItem(); }
+          break;
+        case 'Escape':
+          if (livePlaying) { e.preventDefault(); stopAll(); }
+          else if (mobileDrawerOpen) { e.preventDefault(); setMobileDrawerOpen(false); }
+          else if (showSettings) { e.preventDefault(); setShowSettings(false); }
+          break;
+        case 't':
+        case 'T':
+          e.preventDefault();
+          toggleTheme();
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // The deps are functions defined later in the component; they're stable across renders for our purposes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livePlaying, livePaused, filledCount, isCompiling, mobileDrawerOpen, showSettings]);
 
   const estimateSpeechDuration = (text) => {
     const words = text.trim().split(/\s+/).length;
@@ -1520,7 +1844,7 @@ export default function App() {
 
     if (warnings.length > 0) {
       const lines = [
-        'A few things to know about this WAV export:',
+        'A few things to know about this audio export:',
         '',
         ...warnings,
         '',
@@ -1540,6 +1864,22 @@ export default function App() {
       const numChannels = 2;
       const totalSamples = Math.ceil(totalDuration * sampleRate);
       const offlineCtx = new OfflineAudioContext(numChannels, totalSamples, sampleRate);
+
+      // Compute per-source gain factors for loudness normalisation
+      const sourceGains = new Map(); // questionId -> gain factor
+      if (normaliseLoudness) {
+        const sourcesWithRms = questions.filter(q => q.source?.kind === 'file' && q.source.rms > 0);
+        if (sourcesWithRms.length >= 2) {
+          // Use median RMS as the target — robust against outliers
+          const rmsValues = sourcesWithRms.map(q => q.source.rms).sort((a, b) => a - b);
+          const targetRms = rmsValues[Math.floor(rmsValues.length / 2)];
+          for (const q of sourcesWithRms) {
+            // Clamp gain to a reasonable range to prevent over-amplification of near-silent clips
+            const gain = Math.min(4, Math.max(0.25, targetRms / q.source.rms));
+            sourceGains.set(q.id, gain);
+          }
+        }
+      }
 
       const ttsItems = timeline.filter(t => t.type === 'tts');
       const ttsBuffers = new Map();
@@ -1598,11 +1938,25 @@ export default function App() {
       }
 
       let ttsIndex = 0;
+      const fadeDur = crossfadeMs / 1000; // seconds
       timeline.forEach((item) => {
         if (item.type === 'audio') {
           const src = offlineCtx.createBufferSource();
           src.buffer = item.buffer;
-          src.connect(offlineCtx.destination);
+          // Per-source normalisation gain + fade-in/out envelope
+          const gainNode = offlineCtx.createGain();
+          const normGain = sourceGains.get(item.questionId) ?? 1;
+          // Build envelope: fade in over fadeDur, hold, fade out over fadeDur
+          const itemDur = item.duration;
+          if (fadeDur > 0 && itemDur > fadeDur * 2.5) {
+            gainNode.gain.setValueAtTime(0, item.start);
+            gainNode.gain.linearRampToValueAtTime(normGain, item.start + fadeDur);
+            gainNode.gain.setValueAtTime(normGain, item.start + itemDur - fadeDur);
+            gainNode.gain.linearRampToValueAtTime(0, item.start + itemDur);
+          } else {
+            gainNode.gain.setValueAtTime(normGain, item.start);
+          }
+          src.connect(gainNode).connect(offlineCtx.destination);
           if (item.bufferOffset != null) {
             src.start(item.start, item.bufferOffset, item.playDuration);
           } else {
@@ -1614,14 +1968,32 @@ export default function App() {
           if (buf) {
             const src = offlineCtx.createBufferSource();
             src.buffer = buf;
-            src.connect(offlineCtx.destination);
+            // Gentle fade-in/out for TTS too (just 30ms — much shorter than music) to avoid clicks
+            const gainNode = offlineCtx.createGain();
+            const ttsFade = 0.03;
+            const ttsDur = buf.duration;
+            if (ttsDur > ttsFade * 2.5) {
+              gainNode.gain.setValueAtTime(0, item.start);
+              gainNode.gain.linearRampToValueAtTime(1, item.start + ttsFade);
+              gainNode.gain.setValueAtTime(1, item.start + ttsDur - ttsFade);
+              gainNode.gain.linearRampToValueAtTime(0, item.start + ttsDur);
+            }
+            src.connect(gainNode).connect(offlineCtx.destination);
             src.start(item.start);
           }
         } else if (item.type === 'spotify' && item.previewUrl && item.endSec <= 30 && spotifyPreviewBuffers.has(item.previewUrl)) {
           const buf = spotifyPreviewBuffers.get(item.previewUrl);
           const src = offlineCtx.createBufferSource();
           src.buffer = buf;
-          src.connect(offlineCtx.destination);
+          // Apply fade to spotify clips too
+          const gainNode = offlineCtx.createGain();
+          if (fadeDur > 0 && item.duration > fadeDur * 2.5) {
+            gainNode.gain.setValueAtTime(0, item.start);
+            gainNode.gain.linearRampToValueAtTime(1, item.start + fadeDur);
+            gainNode.gain.setValueAtTime(1, item.start + item.duration - fadeDur);
+            gainNode.gain.linearRampToValueAtTime(0, item.start + item.duration);
+          }
+          src.connect(gainNode).connect(offlineCtx.destination);
           // Offset within preview clip = item.startSec
           src.start(item.start, item.startSec, item.duration);
         }
@@ -1630,15 +2002,65 @@ export default function App() {
       setCompileStatus('Rendering...');
       setCompileProgress(90);
       const rendered = await offlineCtx.startRendering();
-      setCompileStatus('Encoding WAV...');
-      setCompileProgress(97);
-      const wavBlob = audioBufferToWav(rendered);
-      const url = URL.createObjectURL(wavBlob);
+
+      // Encode in the chosen format
+      let blob, ext, mimeLabel;
+      if (outputFormat === 'wav') {
+        setCompileStatus('Encoding WAV...');
+        setCompileProgress(97);
+        blob = audioBufferToWav(rendered);
+        ext = 'wav';
+        mimeLabel = 'WAV';
+      } else if (outputFormat === 'mp3') {
+        setCompileStatus('Encoding MP3 (this takes a while)...');
+        setCompileProgress(92);
+        try {
+          blob = await audioBufferToMp3(rendered, mp3Bitrate, (frac) => {
+            setCompileProgress(92 + frac * 7);
+          });
+          ext = 'mp3';
+          mimeLabel = `MP3 ${mp3Bitrate}kbps`;
+        } catch (err) {
+          alert(`MP3 encoding failed: ${err.message}\n\nFalling back to WAV.`);
+          blob = audioBufferToWav(rendered);
+          ext = 'wav';
+          mimeLabel = 'WAV';
+        }
+      } else if (outputFormat === 'ogg' || outputFormat === 'webm') {
+        setCompileStatus(`Encoding ${outputFormat.toUpperCase()}...`);
+        setCompileProgress(94);
+        const fmt = pickSupportedCompressedFormat();
+        if (!fmt) {
+          alert('Your browser doesn\'t support OGG/WebM encoding. Falling back to WAV.');
+          blob = audioBufferToWav(rendered);
+          ext = 'wav';
+          mimeLabel = 'WAV';
+        } else {
+          try {
+            blob = await audioBufferToCompressed(rendered, fmt.mime, 128000);
+            ext = fmt.ext;
+            mimeLabel = `${ext.toUpperCase()} (Opus)`;
+          } catch (err) {
+            alert(`${outputFormat.toUpperCase()} encoding failed: ${err.message}\n\nFalling back to WAV.`);
+            blob = audioBufferToWav(rendered);
+            ext = 'wav';
+            mimeLabel = 'WAV';
+          }
+        }
+      } else {
+        blob = audioBufferToWav(rendered);
+        ext = 'wav';
+        mimeLabel = 'WAV';
+      }
+
+      const url = URL.createObjectURL(blob);
       if (finalAudioUrl) URL.revokeObjectURL(finalAudioUrl);
       setFinalAudioUrl(url);
       setFinalAudioDuration(rendered.duration);
+      setFinalAudioFormat(ext);
+      setFinalAudioSize(blob.size);
       setCompileProgress(100);
-      setCompileStatus('Done!');
+      setCompileStatus(`Done · ${mimeLabel}`);
       setTimeout(() => setIsCompiling(false), 600);
     } catch (err) {
       console.error(err);
@@ -1664,8 +2086,16 @@ export default function App() {
     if (!finalAudioUrl) return;
     const a = document.createElement('a');
     a.href = finalAudioUrl;
-    a.download = `${examTitle.replace(/[^a-z0-9]+/gi, '_')}.wav`;
+    a.download = `${examTitle.replace(/[^a-z0-9]+/gi, '_')}.${finalAudioFormat || 'wav'}`;
     a.click();
+  };
+
+  // Human-readable file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
   const { totalDuration } = buildTimeline();
@@ -1674,179 +2104,383 @@ export default function App() {
   const spotifyCount = questions.filter(q => q.source?.kind === 'spotify').length;
   const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
+  const renderSidebarBody = (closeAfter) => {
+    const cloudEntries = cloudExams.map(e => ({
+      kind: 'cloud',
+      id: e.id,
+      name: e.name,
+      config: e.config,
+      shared_with_all: e.shared_with_all,
+      savedAt: e.updated_at,
+      ownerEmail: e.owner?.email,
+      ownerName: e.owner?.display_name,
+      isMine: session ? e.owner_id === session.user?.id : false,
+    }));
+    const localEntries = savedExams.map(e => ({
+      kind: 'local',
+      id: e.id,
+      name: e.name,
+      config: e.config,
+      savedAt: e.savedAt,
+      isMine: true,
+    }));
+    const allEntries = [...cloudEntries, ...localEntries];
+
+    return (
+      <>
+        <div className="flex gap-1 mt-3">
+          <button onClick={() => { newBlankExam(); closeAfter?.(); }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
+            style={{ background: 'transparent', borderRadius: '3px', color: 'var(--text-muted)' }}
+            title="Start a new blank exam">
+            <Plus size={11} /> New
+          </button>
+          <button onClick={() => { saveCurrentExam(); closeAfter?.(); }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
+            style={{ borderRadius: '3px' }}
+            title={myProfile?.approved ? 'Save to cloud workspace' : 'Save to browser'}>
+            <Save size={11} /> Save
+          </button>
+        </div>
+
+        {cloudExamsLoading && (
+          <div className="mt-3 text-xs flex items-center gap-2 px-2" style={{ color: 'var(--text-dim)' }}>
+            <Loader2 size={10} className="animate-spin" /> Syncing workspace...
+          </div>
+        )}
+
+        <div className="mt-4 space-y-1 max-h-[60vh] overflow-y-auto">
+          {allEntries.length === 0 ? (
+            <div className="text-xs px-2 py-4 text-center" style={{ lineHeight: 1.5, color: 'var(--text-dim)' }}>
+              No saved exams yet.<br />
+              Click <strong>Save</strong> to store the current setup.
+            </div>
+          ) : (
+            allEntries.map(entry => (
+              <SavedExamRow
+                key={`${entry.kind}-${entry.id}`}
+                entry={entry}
+                onLoad={() => { loadSavedExam(entry); closeAfter?.(); }}
+                onUpdate={entry.isMine ? () => updateExistingExam(entry) : null}
+                onRename={entry.isMine ? () => renameSavedExam(entry) : null}
+                onDelete={entry.isMine ? () => deleteSavedExam(entry) : null}
+                onToggleShare={entry.kind === 'cloud' && entry.isMine ? () => toggleShareWithAll(entry) : null}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 pt-4 text-xs px-2" style={{ borderTop: '1px dashed var(--border)', lineHeight: 1.5, color: 'var(--text-dim)' }}>
+          {myProfile?.approved
+            ? 'Cloud-saved exams are accessible from any device. Local exams (LOCAL badge) stay in this browser.'
+            : 'Exams are saved in your browser only until your account is approved.'}
+        </div>
+      </>
+    );
+  };
+
+  // ===== Auth gating: show auth screen / waiting-for-approval / app =====
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-gradient)', color: 'var(--text)' }}>
+        <Loader2 size={20} className="animate-spin" />
+      </div>
+    );
+  }
+  if (!session) {
+    return <AuthScreen theme={theme} toggleTheme={toggleTheme} />;
+  }
+  if (myProfile && !myProfile.approved) {
+    return <PendingApprovalScreen profile={myProfile} onSignOut={signOut} theme={theme} toggleTheme={toggleTheme} />;
+  }
+
   return (
     <div className="min-h-screen" style={{
-      background: 'radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%)',
+      background: 'var(--bg-gradient)',
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
-      color: '#f0f0f3',
+      color: 'var(--text)',
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
-        body { margin: 0; background: #0b0b0f; }
+        body { margin: 0; background: var(--bg-base); }
+
+        :root, [data-theme="dark"] {
+          --bg-base: #0b0b0f;
+          --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #1a1a24 0%, #0b0b0f 60%);
+          --surface: rgba(255,255,255,0.03);
+          --surface-2: rgba(255,255,255,0.02);
+          --surface-elev: rgba(255,255,255,0.06);
+          --border: rgba(255,255,255,0.08);
+          --border-strong: rgba(255,255,255,0.14);
+          --text: #f0f0f3;
+          --text-muted: #8a8a96;
+          --text-dim: #5b5b65;
+          --text-faint: #4f4f57;
+          --accent: #6366f1;
+          --accent-soft: #818cf8;
+          --accent-bg-on: #ffffff;
+          --accent-tint: rgba(99,102,241,0.08);
+          --accent-tint-strong: rgba(99,102,241,0.18);
+          --accent-border: rgba(99,102,241,0.25);
+          --accent-glow: rgba(99,102,241,0.15);
+          --accent2: #22d3ee;
+          --accent2-tint: rgba(34,211,238,0.15);
+          --header-bg: rgba(255,255,255,0.02);
+          --input-bg: rgba(255,255,255,0.03);
+          --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.08);
+          --logo-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3);
+          --ink: #2a2520;
+          --waveform-bg: rgba(0,0,0,0.25);
+          --code-bg: #0a0a0e;
+          --code-text: #d5d5dc;
+          --scrollbar: rgba(255,255,255,0.1);
+          --scrollbar-hover: rgba(255,255,255,0.18);
+        }
+
+        [data-theme="light"] {
+          --bg-base: #fafaf9;
+          --bg-gradient: linear-gradient(180deg, #fafaf9 0%, #f4f4f1 100%);
+          --surface: #ffffff;
+          --surface-2: rgba(0,0,0,0.015);
+          --surface-elev: rgba(0,0,0,0.04);
+          --border: rgba(0,0,0,0.1);
+          --border-strong: rgba(0,0,0,0.18);
+          --text: #18181b;
+          --text-muted: #6b6b6f;
+          --text-dim: #9b9ba0;
+          --text-faint: #b9b9bd;
+          --accent: #4f46e5;
+          --accent-soft: #6366f1;
+          --accent-bg-on: #ffffff;
+          --accent-tint: rgba(79,70,229,0.06);
+          --accent-tint-strong: rgba(79,70,229,0.12);
+          --accent-border: rgba(79,70,229,0.3);
+          --accent-glow: rgba(79,70,229,0.15);
+          --accent2: #0891b2;
+          --accent2-tint: rgba(8,145,178,0.1);
+          --header-bg: rgba(255,255,255,0.7);
+          --input-bg: #ffffff;
+          --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.07);
+          --logo-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(79,70,229,0.25);
+          --ink: #f0f0f3;
+          --waveform-bg: rgba(0,0,0,0.04);
+          --code-bg: #1a1a1f;
+          --code-text: #f0f0f3;
+          --scrollbar: rgba(0,0,0,0.12);
+          --scrollbar-hover: rgba(0,0,0,0.2);
+        }
 
         .display-font { font-family: 'Geist', system-ui, sans-serif; letter-spacing: -0.015em; }
         .mono-font { font-family: 'Geist Mono', 'Menlo', monospace; }
 
-        .accent { color: #818cf8; }
-        .accent-bg { background: #6366f1; color: #ffffff; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
-        .accent2 { color: #22d3ee; }
+        .accent { color: var(--accent-soft); }
+        .accent-bg { background: var(--accent); color: var(--accent-bg-on); box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset; }
+        .accent2 { color: var(--accent2); }
 
-        .paper {
-          background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-        }
-        .hairline { border: 0.5px solid rgba(255,255,255,0.08); }
-        .ink-shadow {
-          box-shadow:
-            0 1px 0 rgba(255,255,255,0.04) inset,
-            0 4px 24px rgba(0,0,0,0.4),
-            0 0 0 0.5px rgba(255,255,255,0.08);
-        }
+        .paper { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%); }
+        .hairline { border: 0.5px solid var(--border); }
+        .ink-shadow { box-shadow: var(--shadow-card); }
 
         input[type="number"], input[type="text"], input[type="password"], input[type="email"], textarea, select {
-          background: rgba(255,255,255,0.03);
-          border: 0.5px solid rgba(255,255,255,0.1);
+          background: var(--input-bg);
+          border: 0.5px solid var(--border);
           padding: 7px 11px;
           font-family: inherit;
-          color: #f0f0f3;
+          color: var(--text);
           border-radius: 6px;
           transition: all 0.15s;
+          font-size: 14px;
         }
         input:focus, textarea:focus, select:focus {
           outline: none;
-          border-color: #6366f1;
-          box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-glow);
         }
-        input::placeholder, textarea::placeholder { color: #5b5b65; }
+        input::placeholder, textarea::placeholder { color: var(--text-dim); }
 
         button { transition: all 0.15s; cursor: pointer; }
         button:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .question-card {
           transition: all 0.2s;
-          background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-          border: 0.5px solid rgba(255,255,255,0.08);
+          background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+          border: 0.5px solid var(--border);
         }
         .question-card:hover {
-          border-color: rgba(255,255,255,0.14);
+          border-color: var(--border-strong);
           transform: translateY(-1px);
         }
 
         .drop-zone {
-          background: rgba(255,255,255,0.02);
-          border: 1px dashed rgba(255,255,255,0.12);
+          background: var(--surface-2);
+          border: 1px dashed var(--border-strong);
           transition: all 0.15s;
         }
         .drop-zone.has-source {
-          background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.02) 100%);
-          border: 0.5px solid rgba(99,102,241,0.25);
+          background: linear-gradient(180deg, var(--accent-tint) 0%, var(--accent-tint) 100%);
+          border: 0.5px solid var(--accent-border);
           border-style: solid;
         }
 
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .progress-bar {
-          background: linear-gradient(90deg, #6366f1 0%, #818cf8 50%, #6366f1 100%);
+          background: linear-gradient(90deg, var(--accent) 0%, var(--accent-soft) 50%, var(--accent) 100%);
           background-size: 200% 100%;
           animation: shimmer 2s linear infinite;
         }
 
         .tab {
           padding: 6px 12px;
-          border: 0.5px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.02);
-          color: #c5c5cc;
+          border: 0.5px solid var(--border);
+          background: var(--surface-2);
+          color: var(--text-muted);
           border-radius: 6px;
         }
         .tab.active {
-          background: #6366f1;
-          color: #ffffff;
-          border-color: #6366f1;
+          background: var(--accent);
+          color: var(--accent-bg-on);
+          border-color: var(--accent);
           box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset;
         }
 
-        .hover-glow:hover {
-          background: rgba(255,255,255,0.05) !important;
-        }
+        .hover-glow:hover { background: var(--surface-elev) !important; }
 
         .yt-hidden { position: fixed; bottom: -200px; right: 10px; opacity: 0.01; pointer-events: none; }
 
         details > summary { list-style: none; cursor: pointer; }
         details > summary::-webkit-details-marker { display: none; }
 
-        /* Range slider in dark theme */
-        input[type="range"] {
-          background: transparent;
-          padding: 0;
-          border: none;
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-          background: rgba(255,255,255,0.08);
-          height: 4px;
-          border-radius: 2px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-          appearance: none;
-          width: 14px; height: 14px;
-          background: #818cf8;
-          border-radius: 50%;
-          margin-top: -5px;
-          cursor: pointer;
-        }
-        input[type="range"]::-moz-range-track {
-          background: rgba(255,255,255,0.08);
-          height: 4px;
-          border-radius: 2px;
-        }
-        input[type="range"]::-moz-range-thumb {
-          width: 14px; height: 14px;
-          background: #818cf8;
-          border-radius: 50%;
-          border: none;
-          cursor: pointer;
-        }
+        input[type="range"] { background: transparent; padding: 0; border: none; }
+        input[type="range"]::-webkit-slider-runnable-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
+        input[type="range"]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; margin-top: -5px; cursor: pointer; }
+        input[type="range"]::-moz-range-track { background: var(--surface-elev); height: 4px; border-radius: 2px; }
+        input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--accent-soft); border-radius: 50%; border: none; cursor: pointer; }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+        /* Mobile drawer */
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .drawer-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+          z-index: 50; animation: fadeIn 0.2s ease;
+        }
+        .drawer-panel {
+          position: fixed; left: 0; top: 0; bottom: 0;
+          width: 280px; max-width: 85vw;
+          background: var(--bg-base);
+          border-right: 0.5px solid var(--border);
+          z-index: 51; animation: slideIn 0.2s ease;
+          overflow-y: auto;
+        }
+
+        /* Responsive overrides */
+        @media (max-width: 640px) {
+          .responsive-grid-2 { grid-template-columns: 1fr !important; }
+          .responsive-grid-3 { grid-template-columns: 1fr 1fr !important; }
+          .responsive-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .hide-mobile { display: none !important; }
+          .stack-mobile { flex-direction: column !important; align-items: stretch !important; }
+          .stack-mobile > * { width: 100%; }
+        }
+        @media (min-width: 641px) {
+          .show-mobile-only { display: none !important; }
+        }
       `}</style>
 
       <div className="yt-hidden"><div ref={ytContainerRef}></div></div>
 
-      <header className="hairline" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 20 }}>
-        <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {/* Toast notifications */}
+      {showAdminPanel && (
+        <AdminPanel onClose={() => setShowAdminPanel(false)} onChange={reloadCloudExams} />
+      )}
+
+      {shareToastMessage && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--surface)', color: 'var(--text)',
+          border: '0.5px solid var(--accent-border)',
+          padding: '12px 18px', borderRadius: '10px',
+          boxShadow: 'var(--shadow-card)',
+          zIndex: 100, maxWidth: '90vw',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          fontSize: '13px',
+        }}>
+          <Check size={14} className="accent" />
+          <span>{shareToastMessage}</span>
+        </div>
+      )}
+
+      <header className="hairline" style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--header-bg)', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className="show-mobile-only p-2 hairline"
+              style={{ background: 'var(--surface-2)', borderRadius: '8px', color: 'var(--text-muted)' }}
+              aria-label="Open sidebar">
+              <Menu size={18} />
+            </button>
             <div style={{
               width: '34px', height: '34px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              background: 'linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%)',
               borderRadius: '8px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.15) inset, 0 4px 12px rgba(99,102,241,0.3)',
+              boxShadow: 'var(--logo-shadow)',
+              flexShrink: 0,
             }}>
               <Music size={18} color="#ffffff" strokeWidth={2.2} />
             </div>
-            <div>
-              <h1 className="display-font text-base font-semibold leading-none mb-1">Aural Composer</h1>
-              <div className="mono-font text-xs leading-none" style={{ color: '#5b5b65' }}>music exam audio · v1.0</div>
+            <div className="min-w-0">
+              <h1 className="display-font text-base font-semibold leading-none mb-1 truncate">Aural Composer</h1>
+              <div className="mono-font text-xs leading-none hide-mobile" style={{ color: 'var(--text-dim)' }}>music exam audio · v1.0</div>
             </div>
           </div>
-          <button onClick={() => setShowSettings(!showSettings)}
-            className="flex items-center gap-2 px-3 py-2 hairline"
-            style={{
-              background: showSettings ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.02)',
-              borderColor: showSettings ? 'rgba(99,102,241,0.3)' : undefined,
-              color: showSettings ? '#a5b4fc' : '#c5c5cc',
-              borderRadius: '8px',
-            }}>
-            <Settings size={14} />
-            <span className="text-xs font-medium">Voice & API</span>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {myProfile?.is_admin && (
+              <button onClick={() => setShowAdminPanel(true)}
+                className="p-2 hairline"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+                title="Manage users (admin only)"
+                aria-label="Admin panel">
+                <Users size={14} />
+              </button>
+            )}
+            <button onClick={toggleTheme}
+              className="p-2 hairline"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme">
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            <button onClick={() => setShowSettings(!showSettings)}
+              className="flex items-center gap-2 px-3 py-2 hairline"
+              style={{
+                background: showSettings ? 'var(--accent-tint-strong)' : 'var(--surface-2)',
+                borderColor: showSettings ? 'var(--accent-border)' : undefined,
+                color: showSettings ? '#a5b4fc' : 'var(--text-muted)',
+                borderRadius: '8px',
+              }}>
+              <Settings size={14} />
+              <span className="text-xs font-medium hide-mobile">Voice & API</span>
+            </button>
+            <button onClick={signOut}
+              className="p-2 hairline"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+              title={`Signed in as ${myProfile?.email || session?.user?.email || ''} — click to sign out`}
+              aria-label="Sign out">
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </header>
 
       {showSettings && (
         <div className="paper hairline" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="max-w-7xl mx-auto px-8 py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6">
             <div className="mb-4">
               <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2">TTS Provider</div>
               <div className="flex gap-2 flex-wrap">
@@ -1946,7 +2580,7 @@ export default function App() {
                   {!spotifyToken ? (
                     <button onClick={spotifyConnect} disabled={!spotifyClientId}
                       className="px-4 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                      style={{ color: '#16161a', borderRadius: '2px' }}>
+                      style={{ color: 'var(--surface)', borderRadius: '2px' }}>
                       Connect Spotify
                     </button>
                   ) : (
@@ -1964,7 +2598,7 @@ export default function App() {
                 </div>
                 <div className="md:col-span-2 text-xs opacity-60 leading-relaxed">
                   <strong>Setup (one-time):</strong> at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" className="underline">developer.spotify.com/dashboard</a>, create an app and add this exact Redirect URI:
-                  <code className="mono-font block mt-1 p-2" style={{ background: '#f0f0f3', color: '#16161a', borderRadius: '2px', wordBreak: 'break-all' }}>
+                  <code className="mono-font block mt-1 p-2" style={{ background: 'var(--text)', color: 'var(--surface)', borderRadius: '2px', wordBreak: 'break-all' }}>
                     {typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}
                   </code>
                   Full-track playback requires Spotify Premium. Free accounts can still import playlists and use 30-second track previews.
@@ -1985,67 +2619,51 @@ export default function App() {
       )}
 
       <div className="flex max-w-7xl mx-auto" style={{ minHeight: 'calc(100vh - 90px)' }}>
-        {/* Sidebar */}
-        <aside style={{
+        {/* Sidebar (desktop) */}
+        <aside className="hide-mobile" style={{
           width: sidebarOpen ? '240px' : '48px',
           flexShrink: 0,
-          borderRight: '0.5px solid rgba(255,255,255,0.06)',
+          borderRight: '0.5px solid var(--border)',
           transition: 'width 0.2s ease',
-          background: 'rgba(255,255,255,0.015)',
+          background: 'var(--surface-2)',
         }}>
           <div className="sticky top-0 p-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)}
               className="w-full flex items-center justify-center gap-2 p-2 hairline mono-font text-xs uppercase tracking-wider opacity-70 hover:opacity-100"
-              style={{ background: 'transparent', borderRadius: '4px' }}
+              style={{ background: 'transparent', borderRadius: '4px', color: 'var(--text-muted)' }}
               title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>
               <ListMusic size={14} />
               {sidebarOpen && <span>Saved Exams</span>}
             </button>
-
-            {sidebarOpen && (
-              <>
-                <div className="flex gap-1 mt-3">
-                  <button onClick={newBlankExam}
-                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-                    style={{ background: 'transparent', borderRadius: '3px' }}
-                    title="Start a new blank exam">
-                    <Plus size={11} /> New
-                  </button>
-                  <button onClick={saveCurrentExam}
-                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
-                    style={{ color: '#16161a', borderRadius: '3px' }}
-                    title="Save current exam to your browser">
-                    <Save size={11} /> Save
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-1 max-h-[60vh] overflow-y-auto">
-                  {savedExams.length === 0 ? (
-                    <div className="text-xs opacity-50 px-2 py-4 text-center" style={{ lineHeight: 1.5 }}>
-                      No saved exams yet.<br />
-                      Click <strong>Save</strong> to store the current setup in your browser.
-                    </div>
-                  ) : (
-                    savedExams.map(entry => (
-                      <SavedExamRow key={entry.id} entry={entry}
-                        onLoad={() => loadSavedExam(entry.id)}
-                        onUpdate={() => updateExistingExam(entry.id)}
-                        onRename={() => renameSavedExam(entry.id)}
-                        onDelete={() => deleteSavedExam(entry.id)} />
-                    ))
-                  )}
-                </div>
-
-                <div className="mt-4 pt-4 text-xs opacity-50 px-2" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)', lineHeight: 1.5 }}>
-                  Saved exams live in your browser only. To share an exam with someone else, use <strong>Save config</strong> below to download a file.
-                </div>
-              </>
-            )}
+            {sidebarOpen && renderSidebarBody(null)}
           </div>
         </aside>
 
+        {/* Mobile drawer */}
+        {mobileDrawerOpen && (
+          <>
+            <div className="drawer-overlay" onClick={() => setMobileDrawerOpen(false)} />
+            <div className="drawer-panel">
+              <div className="p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="mono-font text-xs uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                    <ListMusic size={14} /> Saved Exams
+                  </div>
+                  <button onClick={() => setMobileDrawerOpen(false)}
+                    className="p-1.5 hairline"
+                    style={{ background: 'var(--surface-2)', borderRadius: '6px', color: 'var(--text-muted)' }}
+                    aria-label="Close drawer">
+                    <X size={14} />
+                  </button>
+                </div>
+                {renderSidebarBody(() => setMobileDrawerOpen(false))}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Main content */}
-        <main className="flex-1 min-w-0 px-8 py-8">
+        <main className="flex-1 min-w-0 px-4 sm:px-8 py-6 sm:py-8">
         {/* PDF + Save/Load toolbar */}
         <section className="mb-8 paper ink-shadow" style={{ borderRadius: '4px', padding: '20px' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2076,6 +2694,12 @@ export default function App() {
                   <input type="file" accept=".json,application/json" className="hidden"
                     onChange={e => { loadExamConfig(e.target.files[0]); e.target.value = ''; }} />
                 </label>
+                <button onClick={shareAsUrl}
+                  className="flex items-center gap-1.5 px-3 py-2 hairline mono-font text-xs uppercase tracking-wider"
+                  style={{ background: 'transparent' }}
+                  title="Copy a share link that loads this exam (audio files not included)">
+                  <Link2 size={12} /> Share link
+                </button>
               </div>
               <div className="mt-2 text-xs opacity-60">
                 Saves all settings except uploaded audio files (those need to be re-uploaded). YouTube and Spotify clips are saved with their URLs and timestamps.
@@ -2137,7 +2761,7 @@ export default function App() {
               </div>
               <div>
                 <label className="mono-font text-xs uppercase tracking-wider opacity-50 block mb-1">
-                  Between plays template — placeholders: <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{ord}'}</code> (second/third…) · <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{n}'}</code> (2/3…) · <code className="mono-font" style={{ background: 'rgba(99,102,241,0.08)', padding: '1px 4px', borderRadius: '2px' }}>{'{final}'}</code> (auto-adds " and final" on the last play)
+                  Between plays template — placeholders: <code className="mono-font" style={{ background: 'var(--accent-tint)', padding: '1px 4px', borderRadius: '2px' }}>{'{ord}'}</code> (second/third…) · <code className="mono-font" style={{ background: 'var(--accent-tint)', padding: '1px 4px', borderRadius: '2px' }}>{'{n}'}</code> (2/3…) · <code className="mono-font" style={{ background: 'var(--accent-tint)', padding: '1px 4px', borderRadius: '2px' }}>{'{final}'}</code> (auto-adds " and final" on the last play)
                 </label>
                 <input type="text" value={script.betweenPlays} onChange={e => setScript({ ...script, betweenPlays: e.target.value })}
                   className="w-full text-sm" />
@@ -2184,7 +2808,7 @@ export default function App() {
               </div>
               <button onClick={importSpotifyPlaylist} disabled={spotifyLoading || !spotifyPlaylistUrl}
                 className="flex items-center gap-2 px-4 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                style={{ color: '#16161a', borderRadius: '2px' }}>
+                style={{ color: 'var(--surface)', borderRadius: '2px' }}>
                 {spotifyLoading ? <Loader2 size={12} className="animate-spin" /> : <ListMusic size={12} />}
                 Import playlist
               </button>
@@ -2261,7 +2885,7 @@ export default function App() {
               <div className="mono-font text-xs uppercase tracking-wider mb-2 flex justify-between">
                 <span>{compileStatus}</span><span>{compileProgress.toFixed(0)}%</span>
               </div>
-              <div className="h-1 hairline rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+              <div className="h-1 hairline rounded overflow-hidden" style={{ background: 'var(--surface-elev)' }}>
                 <div className="progress-bar h-full transition-all duration-300" style={{ width: `${compileProgress}%` }} />
               </div>
             </div>
@@ -2278,57 +2902,128 @@ export default function App() {
               <div className="flex items-stretch hairline" style={{ borderRadius: '2px', overflow: 'hidden' }}>
                 <button onClick={skipToPrevExtract}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Jump to previous extract">
                   <SkipBack size={14} />
                 </button>
                 <button onClick={livePaused ? resumeLive : pauseLive}
                   className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider font-semibold"
-                  style={{ background: livePaused ? '#6366f1' : '#16161a', color: livePaused ? '#16161a' : '#f0f0f3', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: livePaused ? 'var(--accent)' : 'var(--surface)', color: livePaused ? 'var(--surface)' : 'var(--text)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title={livePaused ? 'Resume' : 'Pause'}>
                   {livePaused ? <Play size={14} /> : <Pause size={14} />}
                   {livePaused ? 'Resume' : 'Pause'}
                 </button>
                 <button onClick={skipCurrentItem}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Skip current segment (announcement, silence, or audio)">
                   <ChevronsRight size={14} />
                 </button>
                 <button onClick={skipToNextExtract}
                   className="flex items-center gap-1 px-3 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#16161a', borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--surface)', borderRight: '1px solid rgba(255,255,255,0.08)' }}
                   title="Jump to next extract">
                   <SkipForward size={14} />
                 </button>
                 <button onClick={playLiveFull}
                   className="flex items-center gap-2 px-4 py-3 mono-font text-xs uppercase tracking-wider"
-                  style={{ background: '#f0f0f3', color: '#16161a' }}
+                  style={{ background: 'var(--text)', color: 'var(--surface)' }}
                   title="Stop preview">
                   <Square size={12} /> Stop
                 </button>
               </div>
             )}
 
-            <button onClick={compileAudio} disabled={isCompiling || filledCount === 0 || livePlaying}
-              className="flex items-center gap-2 px-5 py-3 mono-font text-sm uppercase tracking-wider font-semibold accent-bg"
-              style={{ color: '#16161a', borderRadius: '2px' }}>
-              <Download size={16} />
-              Compile WAV file
-            </button>
+            <div className="flex items-stretch hairline" style={{ borderRadius: '8px', overflow: 'hidden' }}>
+              <select value={outputFormat} onChange={e => setOutputFormat(e.target.value)}
+                disabled={isCompiling || filledCount === 0 || livePlaying}
+                className="mono-font text-xs uppercase tracking-wider"
+                style={{
+                  padding: '12px 8px 12px 14px',
+                  border: 'none',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text-muted)',
+                  borderRight: '0.5px solid var(--border)',
+                  borderRadius: 0,
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a8a96' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 10px center',
+                  paddingRight: '28px',
+                }}>
+                <option value="mp3">MP3</option>
+                <option value="wav">WAV</option>
+                <option value="ogg">OGG</option>
+              </select>
+              <button onClick={compileAudio} disabled={isCompiling || filledCount === 0 || livePlaying}
+                className="flex items-center gap-2 px-5 mono-font text-sm uppercase tracking-wider font-semibold accent-bg"
+                style={{ border: 'none', borderRadius: 0 }}>
+                <Download size={16} />
+                Compile
+              </button>
+            </div>
+
+            {outputFormat === 'mp3' && (
+              <div className="flex items-center gap-2 mono-font text-xs">
+                <label style={{ color: 'var(--text-muted)' }}>Bitrate</label>
+                <select value={mp3Bitrate} onChange={e => setMp3Bitrate(parseInt(e.target.value, 10))}
+                  disabled={isCompiling || livePlaying}
+                  style={{ padding: '6px 8px' }}>
+                  <option value="128">128 kbps · smaller</option>
+                  <option value="192">192 kbps · balanced</option>
+                  <option value="256">256 kbps · high</option>
+                  <option value="320">320 kbps · maximum</option>
+                </select>
+              </div>
+            )}
 
             {finalAudioUrl && (
               <button onClick={downloadFinal}
                 className="flex items-center gap-2 px-5 py-3 hairline mono-font text-sm uppercase tracking-wider"
-                style={{ background: 'transparent' }}>
+                style={{ background: 'var(--surface-2)', borderRadius: '8px' }}>
                 <FileAudio size={16} />
-                Download · {formatTime(finalAudioDuration)}
+                Download {finalAudioFormat?.toUpperCase()} · {formatTime(finalAudioDuration)}
+                {finalAudioSize > 0 && <span style={{ color: 'var(--text-dim)' }}>· {formatFileSize(finalAudioSize)}</span>}
               </button>
             )}
           </div>
 
+          {/* Audio quality options */}
+          <details className="mt-4 paper hairline" style={{ borderRadius: '8px', padding: '12px 14px' }}>
+            <summary className="mono-font text-xs uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+              <span>Audio quality settings</span>
+              <ChevronDown size={12} />
+            </summary>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={normaliseLoudness} onChange={e => setNormaliseLoudness(e.target.checked)}
+                  style={{ marginTop: '3px' }} />
+                <div className="text-xs" style={{ lineHeight: 1.5 }}>
+                  <div className="font-semibold">Normalise loudness</div>
+                  <div style={{ color: 'var(--text-muted)' }}>Auto-balance quiet and loud extracts to a consistent level. Recommended.</div>
+                </div>
+              </label>
+              <div>
+                <div className="mono-font text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Crossfade</div>
+                <div className="flex items-center gap-2">
+                  <select value={crossfadeMs} onChange={e => setCrossfadeMs(parseInt(e.target.value, 10))}
+                    style={{ padding: '6px 8px', flex: 1 }}>
+                    <option value="0">None — hard cuts</option>
+                    <option value="50">Subtle (50ms)</option>
+                    <option value="150">Smooth (150ms)</option>
+                    <option value="300">Gentle (300ms)</option>
+                  </select>
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  Fades each audio segment in/out to prevent clicks and harsh transitions.
+                </div>
+              </div>
+            </div>
+          </details>
+
           {livePlaying && (
-            <div className="mt-4 paper hairline p-3" style={{ borderRadius: '2px', background: '#16161a' }}>
+            <div className="mt-4 paper hairline p-3" style={{ borderRadius: '2px', background: 'var(--surface)' }}>
               <div className="flex items-center gap-3 mb-2">
                 <div className="mono-font text-xs uppercase tracking-wider opacity-60" style={{ minWidth: '60px' }}>
                   Now: {livePaused && <span className="accent">PAUSED</span>}
@@ -2338,28 +3033,45 @@ export default function App() {
                   {liveItemIndex + 1} / {liveTotalItems}
                 </div>
               </div>
-              <div className="h-1" style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '1px', overflow: 'hidden' }}>
+              <div className="h-1" style={{ background: 'var(--surface-elev)', borderRadius: '1px', overflow: 'hidden' }}>
                 <div style={{
                   width: `${liveTotalItems > 0 ? ((liveItemIndex + 1) / liveTotalItems) * 100 : 0}%`,
                   height: '100%',
-                  background: '#6366f1',
+                  background: 'var(--accent)',
                   transition: 'width 0.3s ease',
                 }} />
               </div>
             </div>
           )}
 
-          <div className="mt-6 paper hairline p-4" style={{ borderRadius: '2px', background: 'rgba(99,102,241,0.08)' }}>
+          <div className="mt-6 paper hairline p-4" style={{ borderRadius: '2px', background: 'var(--accent-tint)' }}>
             <div className="mono-font text-xs uppercase tracking-wider opacity-60 mb-2 flex items-center gap-1.5">
-              <AlertCircle size={12} /> Source compatibility with WAV export
+              <AlertCircle size={12} /> Source compatibility with audio export
             </div>
             <ul className="text-sm leading-relaxed space-y-1 ml-4 list-disc">
               <li><strong>Uploaded audio files</strong> — always exported into the WAV.</li>
               <li><strong>ElevenLabs / OpenAI announcements</strong> — fully exported into the WAV when an API key is provided.</li>
               <li><strong>Browser TTS announcements</strong> — cannot be recorded by the browser; the WAV gets a brief marker tone in their place. Use a paid TTS provider to bake voice into the file.</li>
               <li><strong>YouTube clips</strong> — cannot be exported into the WAV (DRM). They <strong>do</strong> play correctly during "Preview full exam (live)". For a fully-exported file, expand any YouTube clip and use the <code className="mono-font">yt-dlp</code> command to extract the clip locally, then upload it as a file.</li>
-              <li><strong>Spotify clips</strong> — full-track playback requires Spotify Premium and works only in live preview (DRM). However: if your clip's <em>end time</em> is within the first 30 seconds of a track <em>and</em> Spotify exposes a 30-second preview for that track, the clip <strong>will</strong> be baked into the WAV automatically.</li>
+              <li><strong>Spotify clips</strong> — full-track playback requires Spotify Premium and works only in live preview (DRM). However: if your clip's <em>end time</em> is within the first 30 seconds of a track <em>and</em> Spotify exposes a 30-second preview for that track, the clip <strong>will</strong> be baked into the file automatically.</li>
             </ul>
+          </div>
+
+          <div className="mt-4 hide-mobile">
+            <details className="paper hairline" style={{ borderRadius: '8px', padding: '10px 14px' }}>
+              <summary className="mono-font text-xs uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+                <span>Keyboard shortcuts</span>
+                <ChevronDown size={12} />
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>Space</kbd> Play / pause preview</div>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>Esc</kbd> Stop preview / close panel</div>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>N</kbd> Skip to next extract</div>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>P</kbd> Skip to previous extract</div>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>K</kbd> Skip current item</div>
+                <div className="flex items-center gap-2"><kbd className="mono-font" style={kbdStyle}>T</kbd> Toggle theme</div>
+              </div>
+            </details>
           </div>
         </section>
 
@@ -2418,7 +3130,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
         }
       }}>
       <div className="flex items-stretch">
-        <div className="flex flex-col items-center justify-center px-4 py-5 gap-2" style={{ borderRight: '1px solid rgba(255,255,255,0.07)', minWidth: '80px' }}>
+        <div className="flex flex-col items-center justify-center px-2 sm:px-4 py-5 gap-2" style={{ borderRight: '0.5px solid var(--border)', minWidth: '56px' }}>
           <div className="opacity-30 cursor-grab" title="Drag to reorder">
             <GripVertical size={14} />
           </div>
@@ -2446,11 +3158,11 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
             <input type="text" value={q.label} onChange={e => onUpdate(q.id, 'label', e.target.value)} disabled={disabled}
               className="display-font text-xl font-semibold bg-transparent border-none p-0 w-full flex-1"
               style={{ borderBottom: '1px dashed transparent' }}
-              onFocus={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.12)'}
+              onFocus={e => e.target.style.borderBottomColor = 'var(--border-strong)'}
               onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
             <button onClick={() => onPreview(q)} disabled={!q.source || disabled}
               className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-              style={{ background: isPreviewing ? '#6366f1' : 'transparent', color: isPreviewing ? '#16161a' : 'inherit' }}
+              style={{ background: isPreviewing ? 'var(--accent)' : 'transparent', color: isPreviewing ? 'var(--surface)' : 'inherit' }}
               title="Preview full extract (intro + all plays + between announcements)">
               {isPreviewing ? <Pause size={12} /> : <Play size={12} />}
               Preview
@@ -2528,13 +3240,22 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                       {q.source.kind === 'spotify' && (
                         <>
                           {q.source.startStr} → {q.source.endStr} · clip {formatTime(q.source.duration)} · {q.plays}× plays
-                          {q.source.previewUrl && q.source.end <= 30 && <span className="ml-2" style={{ color: '#1db954' }}>✓ fits in 30s preview (WAV export OK)</span>}
+                          {q.source.previewUrl && q.source.end <= 30 && <span className="ml-2" style={{ color: '#1db954' }}>✓ fits in 30s preview (audio export OK)</span>}
                         </>
                       )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {q.source.kind === 'file' && q.source.peaks && (
+                    <div className="hide-mobile mr-2">
+                      <WaveformThumb
+                        peaks={q.source.peaks}
+                        trimStart={q.source.trimStart || 0}
+                        trimEnd={q.source.trimEnd != null ? q.source.trimEnd : q.source.buffer.duration}
+                        totalDuration={q.source.buffer.duration} />
+                    </div>
+                  )}
                   {q.source.kind === 'spotify' && q.source.externalUrl && (
                     <a href={q.source.externalUrl} target="_blank" rel="noopener" className="p-2 rounded" style={{ background: 'transparent' }} title="Open in Spotify">
                       <ExternalLink size={14} />
@@ -2549,12 +3270,12 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                 <details className="mt-3 pt-3" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
                   <summary className="mono-font text-xs uppercase tracking-wider opacity-60">▸ Convert to local file with yt-dlp</summary>
                   <div className="mt-2 flex items-center gap-2">
-                    <code className="mono-font text-xs p-2 flex-1 overflow-x-auto" style={{ background: '#f0f0f3', color: '#16161a', borderRadius: '2px' }}>{ytdlpCommand}</code>
+                    <code className="mono-font text-xs p-2 flex-1 overflow-x-auto" style={{ background: 'var(--text)', color: 'var(--surface)', borderRadius: '2px' }}>{ytdlpCommand}</code>
                     <button onClick={() => navigator.clipboard.writeText(ytdlpCommand)} className="p-2 hairline" style={{ background: 'transparent' }} title="Copy">
                       <Copy size={12} />
                     </button>
                   </div>
-                  <div className="text-xs opacity-60 mt-2">Run this in your terminal to extract just the clip as MP3, then upload it as a file for full WAV export support.</div>
+                  <div className="text-xs opacity-60 mt-2">Run this in your terminal to extract just the clip as MP3, then upload it as a file for full audio export support.</div>
                 </details>
               )}
               {q.source.kind === 'file' && q.source.buffer && (
@@ -2581,7 +3302,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
 
               {mode === 'file' && (
                 <div className="drop-zone hairline p-4 text-center"
-                  style={{ borderStyle: 'dashed', borderRadius: '2px', background: dragOver ? 'rgba(99,102,241,0.08)' : 'transparent' }}
+                  style={{ borderStyle: 'dashed', borderRadius: '2px', background: dragOver ? 'var(--accent-tint)' : 'transparent' }}
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}>
@@ -2615,7 +3336,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                         setYtUrl(''); setYtStart(''); setYtEnd('');
                       }} disabled={disabled || !ytUrl}
                         className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                        style={{ color: '#16161a', borderRadius: '2px' }}>
+                        style={{ color: 'var(--surface)', borderRadius: '2px' }}>
                         Add clip
                       </button>
                     </div>
@@ -2650,7 +3371,7 @@ function QuestionCard({ q, index, totalQuestions, onFileUpload, onYouTubeSet, on
                           setSpUrl(''); setSpStart(''); setSpEnd('');
                         }} disabled={disabled || !spUrl}
                           className="w-full px-3 py-2 mono-font text-xs uppercase tracking-wider accent-bg"
-                          style={{ color: '#16161a', borderRadius: '2px' }}>
+                          style={{ color: 'var(--surface)', borderRadius: '2px' }}>
                           Add clip
                         </button>
                       </div>
@@ -2709,54 +3430,531 @@ function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
 }
 
+// ===== MP3 encoder (loads lamejs on demand) =====
+let lamejsPromise = null;
+function loadLamejs() {
+  if (lamejsPromise) return lamejsPromise;
+  lamejsPromise = new Promise((resolve, reject) => {
+    if (window.lamejs) return resolve(window.lamejs);
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';
+    script.onload = () => {
+      if (window.lamejs) resolve(window.lamejs);
+      else reject(new Error('lamejs loaded but global not found'));
+    };
+    script.onerror = () => reject(new Error('Failed to load lamejs from CDN'));
+    document.head.appendChild(script);
+  });
+  return lamejsPromise;
+}
+
+// ===== lz-string for URL-safe compression of shared configs =====
+let lzStringPromise = null;
+function loadLzString() {
+  if (lzStringPromise) return lzStringPromise;
+  lzStringPromise = new Promise((resolve, reject) => {
+    if (window.LZString) return resolve(window.LZString);
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';
+    script.onload = () => {
+      if (window.LZString) resolve(window.LZString);
+      else reject(new Error('lz-string loaded but global not found'));
+    };
+    script.onerror = () => reject(new Error('Failed to load lz-string from CDN'));
+    document.head.appendChild(script);
+  });
+  return lzStringPromise;
+}
+
+async function audioBufferToMp3(buffer, bitrate = 192, onProgress) {
+  const lamejs = await loadLamejs();
+  const numChannels = Math.min(buffer.numberOfChannels, 2); // MP3 supports max 2 channels
+  const sampleRate = buffer.sampleRate;
+  const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
+
+  // Convert Float32 [-1, 1] samples to Int16 [-32768, 32767]
+  const toInt16 = (floatArr) => {
+    const out = new Int16Array(floatArr.length);
+    for (let i = 0; i < floatArr.length; i++) {
+      const s = Math.max(-1, Math.min(1, floatArr[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return out;
+  };
+
+  const left = toInt16(buffer.getChannelData(0));
+  const right = numChannels > 1 ? toInt16(buffer.getChannelData(1)) : null;
+
+  const chunkSize = 1152; // standard MP3 frame size
+  const mp3Data = [];
+  const totalSamples = left.length;
+  for (let i = 0; i < totalSamples; i += chunkSize) {
+    const leftChunk = left.subarray(i, i + chunkSize);
+    const rightChunk = right ? right.subarray(i, i + chunkSize) : null;
+    const mp3buf = right
+      ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
+      : mp3encoder.encodeBuffer(leftChunk);
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+    if (onProgress && i % (chunkSize * 100) === 0) {
+      onProgress(i / totalSamples);
+      // Yield to the browser to keep the UI responsive
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  const flush = mp3encoder.flush();
+  if (flush.length > 0) mp3Data.push(flush);
+
+  return new Blob(mp3Data, { type: 'audio/mpeg' });
+}
+
+// ===== OGG/WebM encoder using MediaRecorder =====
+async function audioBufferToCompressed(buffer, mimeType, bitrate = 128000) {
+  return new Promise((resolve, reject) => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: buffer.sampleRate });
+    const dest = ctx.createMediaStreamDestination();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(dest);
+
+    let recorder;
+    try {
+      recorder = new MediaRecorder(dest.stream, { mimeType, audioBitsPerSecond: bitrate });
+    } catch (e) {
+      reject(new Error(`MediaRecorder doesn't support ${mimeType} in this browser`));
+      return;
+    }
+
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      ctx.close();
+      resolve(new Blob(chunks, { type: mimeType }));
+    };
+    recorder.onerror = (e) => { ctx.close(); reject(e.error || new Error('MediaRecorder error')); };
+
+    src.onended = () => {
+      // Give the recorder a moment to flush
+      setTimeout(() => recorder.stop(), 100);
+    };
+    recorder.start();
+    src.start();
+  });
+}
+
+function pickSupportedCompressedFormat() {
+  const candidates = [
+    { mime: 'audio/webm;codecs=opus', ext: 'webm' },
+    { mime: 'audio/ogg;codecs=opus', ext: 'ogg' },
+    { mime: 'audio/webm', ext: 'webm' },
+  ];
+  for (const c of candidates) {
+    if (MediaRecorder.isTypeSupported(c.mime)) return c;
+  }
+  return null;
+}
+
+// ===== Small inline waveform thumbnail (shown on filled extract cards) =====
+// ===== Auth screen (sign in / sign up / reset password) =====
+function AuthScreen({ theme, toggleTheme }) {
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'reset'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    setLoading(true);
+    try {
+      if (mode === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: displayName } },
+        });
+        if (error) throw error;
+        if (!data.session) {
+          setMessage('Check your email — we sent a confirmation link. Click it and then come back to sign in.');
+        }
+      } else if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + window.location.pathname,
+        });
+        if (error) throw error;
+        setMessage('Password reset email sent. Check your inbox.');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{
+      background: 'var(--bg-gradient)',
+      color: 'var(--text)',
+      fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
+    }}>
+      <button onClick={toggleTheme}
+        className="absolute top-4 right-4 p-2 hairline"
+        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+        title="Toggle theme">
+        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+      </button>
+
+      <div className="paper hairline" style={{
+        borderRadius: '14px',
+        padding: '32px 28px',
+        width: '100%',
+        maxWidth: '380px',
+        boxShadow: 'var(--shadow-card)',
+      }}>
+        <div className="flex items-center gap-3 mb-6">
+          <div style={{
+            width: '40px', height: '40px',
+            background: 'linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%)',
+            borderRadius: '10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: 'var(--logo-shadow)',
+          }}>
+            <Music size={20} color="#ffffff" strokeWidth={2.2} />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold leading-tight" style={{ letterSpacing: '-0.01em' }}>Aural Composer</h1>
+            <div className="mono-font text-xs" style={{ color: 'var(--text-dim)' }}>
+              {mode === 'signin' && 'Sign in to your account'}
+              {mode === 'signup' && 'Create an account'}
+              {mode === 'reset' && 'Reset your password'}
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={submit} className="space-y-3">
+          {mode === 'signup' && (
+            <div>
+              <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Name (optional)</label>
+              <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                placeholder="Rich Holdsworth"
+                className="w-full" style={{ fontSize: '14px' }} />
+            </div>
+          )}
+          <div>
+            <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              required autoComplete="email"
+              className="w-full" style={{ fontSize: '14px' }} />
+          </div>
+          {mode !== 'reset' && (
+            <div>
+              <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                required autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                minLength={8}
+                className="w-full" style={{ fontSize: '14px' }} />
+              {mode === 'signup' && (
+                <div className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>At least 8 characters.</div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div className="text-xs p-2" style={{ background: 'rgba(220,38,38,0.1)', color: '#fca5a5', borderRadius: '6px', border: '0.5px solid rgba(220,38,38,0.3)' }}>
+              {error}
+            </div>
+          )}
+          {message && (
+            <div className="text-xs p-2" style={{ background: 'var(--accent-tint)', color: 'var(--accent-soft)', borderRadius: '6px', border: '0.5px solid var(--accent-border)' }}>
+              {message}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
+            style={{ borderRadius: '8px', border: 'none' }}>
+            {loading && <Loader2 size={12} className="animate-spin" />}
+            {mode === 'signin' && 'Sign in'}
+            {mode === 'signup' && 'Create account'}
+            {mode === 'reset' && 'Send reset email'}
+          </button>
+        </form>
+
+        <div className="mt-5 pt-5 text-xs space-y-2" style={{ borderTop: '0.5px solid var(--border)', color: 'var(--text-muted)' }}>
+          {mode === 'signin' && (
+            <>
+              <div>Don't have an account? <button onClick={() => { setMode('signup'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Create one</button></div>
+              <div>Forgot your password? <button onClick={() => { setMode('reset'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Reset it</button></div>
+            </>
+          )}
+          {mode === 'signup' && (
+            <div>Already have an account? <button onClick={() => { setMode('signin'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Sign in</button></div>
+          )}
+          {mode === 'reset' && (
+            <div>Remembered? <button onClick={() => { setMode('signin'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Sign in</button></div>
+          )}
+        </div>
+
+        <div className="mt-6 text-xs" style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
+          New accounts require approval before you can save and share exams.
+          This is a private workspace for invited colleagues only.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== Pending-approval screen =====
+function PendingApprovalScreen({ profile, onSignOut, theme, toggleTheme }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{
+      background: 'var(--bg-gradient)',
+      color: 'var(--text)',
+      fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
+    }}>
+      <button onClick={toggleTheme}
+        className="absolute top-4 right-4 p-2 hairline"
+        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}>
+        {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+      </button>
+
+      <div className="paper hairline" style={{
+        borderRadius: '14px',
+        padding: '32px 28px',
+        width: '100%',
+        maxWidth: '420px',
+        boxShadow: 'var(--shadow-card)',
+        textAlign: 'center',
+      }}>
+        <div style={{
+          width: '52px', height: '52px',
+          background: 'var(--accent-tint-strong)',
+          borderRadius: '12px',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '16px',
+        }}>
+          <Mail size={24} className="accent" />
+        </div>
+        <h1 className="text-xl font-semibold mb-2" style={{ letterSpacing: '-0.01em' }}>Awaiting approval</h1>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          Thanks for signing up, <strong>{profile.email}</strong>. An admin will approve your account shortly. You'll be able to use the app as soon as they do.
+        </p>
+        <p className="text-xs mb-6" style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
+          Refresh this page once you've been approved to access the app.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button onClick={() => window.location.reload()}
+            className="w-full py-2 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
+            style={{ borderRadius: '8px', border: 'none' }}>
+            <RefreshCw size={11} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-1px' }} />
+            Check again
+          </button>
+          <button onClick={onSignOut}
+            className="w-full py-2 hairline mono-font text-xs uppercase tracking-wider"
+            style={{ background: 'transparent', color: 'var(--text-muted)', borderRadius: '8px' }}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== Admin: manage user approvals =====
+function AdminPanel({ onClose, onChange }) {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listAllProfiles();
+      setProfiles(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); }, []);
+
+  const toggleApproval = async (id, approved) => {
+    try {
+      await setUserApproved(id, !approved);
+      await load();
+      onChange?.();
+    } catch (err) {
+      alert(`Could not update: ${err.message}`);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}
+      onClick={onClose}>
+      <div className="paper hairline" style={{ borderRadius: '12px', maxWidth: '600px', width: '100%', padding: '20px 24px', boxShadow: 'var(--shadow-card)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="accent" />
+            <h2 className="text-base font-semibold">Manage users</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 hairline" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '6px' }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {loading && <div className="text-xs" style={{ color: 'var(--text-muted)' }}><Loader2 size={12} className="animate-spin inline" /> Loading...</div>}
+        {error && <div className="text-xs" style={{ color: '#fca5a5' }}>{error}</div>}
+
+        {!loading && profiles.length === 0 && (
+          <div className="text-xs" style={{ color: 'var(--text-dim)' }}>No users yet.</div>
+        )}
+
+        <div className="space-y-2">
+          {profiles.map(p => (
+            <div key={p.id} className="hairline p-3 flex items-center justify-between gap-3" style={{ borderRadius: '8px', background: 'var(--surface-2)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{p.display_name || p.email}</div>
+                <div className="mono-font text-xs truncate" style={{ color: 'var(--text-muted)' }}>{p.email}</div>
+                <div className="mono-font text-xs" style={{ color: 'var(--text-dim)' }}>
+                  {new Date(p.created_at).toLocaleDateString()} · {p.is_admin && 'Admin · '}{p.approved ? 'Approved' : 'Pending'}
+                </div>
+              </div>
+              <button onClick={() => toggleApproval(p.id, p.approved)}
+                disabled={p.is_admin}
+                className="px-3 py-1.5 mono-font text-xs uppercase tracking-wider"
+                style={{
+                  background: p.approved ? 'var(--surface-2)' : 'var(--accent)',
+                  color: p.approved ? 'var(--text-muted)' : '#fff',
+                  border: '0.5px solid ' + (p.approved ? 'var(--border)' : 'var(--accent)'),
+                  borderRadius: '6px',
+                  opacity: p.is_admin ? 0.4 : 1,
+                  cursor: p.is_admin ? 'not-allowed' : 'pointer',
+                }}>
+                {p.is_admin ? <ShieldCheck size={11} /> : (p.approved ? 'Revoke' : 'Approve')}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WaveformThumb({ peaks, trimStart, trimEnd, totalDuration, width = 120, height = 22 }) {
+  if (!peaks || peaks.length === 0) return null;
+  const startFrac = totalDuration ? (trimStart || 0) / totalDuration : 0;
+  const endFrac = totalDuration ? (trimEnd != null ? trimEnd : totalDuration) / totalDuration : 1;
+  const startX = startFrac * width;
+  const endX = endFrac * width;
+  const barWidth = Math.max(1, width / peaks.length - 0.5);
+  const stride = width / peaks.length;
+  const mid = height / 2;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ flexShrink: 0 }}>
+      {peaks.map((peak, i) => {
+        const x = i * stride;
+        const inside = x >= startX - 0.5 && x <= endX + 0.5;
+        const h = Math.max(1, peak * (height - 2));
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={mid - h / 2}
+            width={barWidth}
+            height={h}
+            fill={inside ? 'var(--accent-soft)' : 'var(--text-faint)'}
+            opacity={inside ? 0.85 : 0.5}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 // ===== Saved exam row in sidebar =====
-function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete }) {
+function SavedExamRow({ entry, onLoad, onUpdate, onRename, onDelete, onToggleShare }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const date = new Date(entry.savedAt);
   const dateStr = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const extractCount = entry.config?.questions?.length || 0;
+  const ownerName = entry.ownerName || entry.ownerEmail;
 
   return (
     <div className="group relative hairline" style={{ borderRadius: '3px', background: 'transparent' }}>
       <button onClick={onLoad}
-        className="w-full text-left p-2 hover:hover-glow"
+        className="w-full text-left p-2 hover-glow"
         style={{ background: 'transparent', borderRadius: '3px' }}
         title={`Load "${entry.name}"`}>
-        <div className="text-sm font-medium truncate" style={{ paddingRight: '20px' }}>
-          {entry.name}
+        <div className="flex items-center gap-1.5" style={{ paddingRight: '20px' }}>
+          {entry.kind === 'cloud'
+            ? <Cloud size={11} className="accent" style={{ flexShrink: 0 }} />
+            : <CloudOff size={11} style={{ flexShrink: 0, color: 'var(--text-dim)' }} />
+          }
+          <div className="text-sm font-medium truncate">{entry.name}</div>
         </div>
-        <div className="mono-font text-xs opacity-50 mt-0.5">
+        <div className="mono-font text-xs opacity-50 mt-0.5" style={{ paddingLeft: '17px' }}>
           {extractCount} extract{extractCount === 1 ? '' : 's'} · {dateStr}
+          {entry.kind === 'cloud' && entry.shared_with_all && <> · <span className="accent2">shared</span></>}
         </div>
+        {entry.kind === 'cloud' && !entry.isMine && ownerName && (
+          <div className="mono-font text-xs mt-0.5" style={{ paddingLeft: '17px', color: 'var(--text-dim)' }}>
+            by {ownerName}
+          </div>
+        )}
       </button>
-      <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-        className="absolute top-1 right-1 p-1 opacity-40 hover:opacity-100"
-        style={{ background: 'transparent', borderRadius: '3px' }}
-        title="Options">
-        <ChevronDown size={12} />
-      </button>
+      {(onUpdate || onRename || onDelete || onToggleShare) && (
+        <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+          className="absolute top-1 right-1 p-1 opacity-40 hover:opacity-100"
+          style={{ background: 'transparent', borderRadius: '3px' }}
+          title="Options">
+          <ChevronDown size={12} />
+        </button>
+      )}
 
       {menuOpen && (
         <>
           <div onClick={() => setMenuOpen(false)}
             style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
           <div className="absolute right-1 top-7 paper ink-shadow"
-            style={{ borderRadius: '3px', minWidth: '140px', zIndex: 11 }}>
-            <button onClick={() => { setMenuOpen(false); onUpdate(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
-              style={{ background: 'transparent' }}>
-              <Save size={11} /> Update with current
-            </button>
-            <button onClick={() => { setMenuOpen(false); onRename(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
-              style={{ background: 'transparent' }}>
-              <FileText size={11} /> Rename
-            </button>
-            <button onClick={() => { setMenuOpen(false); onDelete(); }}
-              className="w-full text-left px-3 py-2 text-xs hover:hover-glow flex items-center gap-2"
-              style={{ background: 'transparent', color: '#6366f1' }}>
-              <Trash2 size={11} /> Delete
-            </button>
+            style={{ borderRadius: '6px', minWidth: '170px', zIndex: 11 }}>
+            {onUpdate && (
+              <button onClick={() => { setMenuOpen(false); onUpdate(); }}
+                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
+                style={{ background: 'transparent' }}>
+                <Save size={11} /> Update with current
+              </button>
+            )}
+            {onToggleShare && (
+              <button onClick={() => { setMenuOpen(false); onToggleShare(); }}
+                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
+                style={{ background: 'transparent' }}>
+                {entry.shared_with_all ? <CloudOff size={11} /> : <Cloud size={11} />}
+                {entry.shared_with_all ? 'Stop sharing' : 'Share with workspace'}
+              </button>
+            )}
+            {onRename && (
+              <button onClick={() => { setMenuOpen(false); onRename(); }}
+                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
+                style={{ background: 'transparent' }}>
+                <FileText size={11} /> Rename
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => { setMenuOpen(false); onDelete(); }}
+                className="w-full text-left px-3 py-2 text-xs hover-glow flex items-center gap-2"
+                style={{ background: 'transparent', color: 'var(--accent)' }}>
+                <Trash2 size={11} /> Delete
+              </button>
+            )}
           </div>
         </>
       )}
@@ -2826,12 +4024,12 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
       const yMin = mid + min * mid * 0.85;
       const yMax = mid + max * mid * 0.85;
       const inside = x >= startX && x <= endX;
-      ctx.fillStyle = inside ? '#6366f1' : 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = inside ? 'var(--accent)' : 'rgba(255,255,255,0.15)';
       ctx.fillRect(x, yMin, 1, Math.max(1, yMax - yMin));
     }
 
     // Center line
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.fillStyle = 'var(--border)';
     ctx.fillRect(0, mid, W, 1);
   }, [containerWidth, buffer, trimStart, trimEnd, totalDur]);
 
@@ -2935,7 +4133,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
   const endX = (trimEnd / totalDur) * containerWidth;
 
   return (
-    <div className="mt-3 p-3 hairline" style={{ borderRadius: '2px', background: 'rgba(0,0,0,0.25)' }}>
+    <div className="mt-3 p-3 hairline" style={{ borderRadius: '2px', background: 'var(--waveform-bg)' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="mono-font text-xs uppercase tracking-wider opacity-60">Trim</div>
         <div className="mono-font text-xs opacity-70">
@@ -2955,10 +4153,10 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             width: '12px', height: '80px', cursor: 'ew-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-          <div style={{ width: '3px', height: '100%', background: '#6366f1' }} />
+          <div style={{ width: '3px', height: '100%', background: 'var(--accent)' }} />
           <div style={{
             position: 'absolute', top: '-2px', width: '12px', height: '12px',
-            background: '#6366f1', borderRadius: '2px',
+            background: 'var(--accent)', borderRadius: '2px',
           }} />
         </div>
 
@@ -2971,10 +4169,10 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
             width: '12px', height: '80px', cursor: 'ew-resize',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-          <div style={{ width: '3px', height: '100%', background: '#6366f1' }} />
+          <div style={{ width: '3px', height: '100%', background: 'var(--accent)' }} />
           <div style={{
             position: 'absolute', bottom: '-2px', width: '12px', height: '12px',
-            background: '#6366f1', borderRadius: '2px',
+            background: 'var(--accent)', borderRadius: '2px',
           }} />
         </div>
 
@@ -2982,7 +4180,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
         {playheadX != null && (
           <div style={{
             position: 'absolute', top: 0, left: `${playheadX}px`,
-            width: '2px', height: '80px', background: '#f0f0f3',
+            width: '2px', height: '80px', background: 'var(--text)',
             pointerEvents: 'none', boxShadow: '0 0 4px rgba(0,0,0,0.3)',
           }} />
         )}
@@ -2994,7 +4192,7 @@ function WaveformTrimmer({ source, onUpdate, disabled }) {
           onClick={() => isPlaying ? stopPlayback() : startPlayback()}
           disabled={disabled}
           className="flex items-center gap-1 px-3 py-1.5 hairline mono-font text-xs uppercase tracking-wider"
-          style={{ background: isPlaying ? '#6366f1' : 'transparent', color: isPlaying ? '#16161a' : 'inherit' }}>
+          style={{ background: isPlaying ? 'var(--accent)' : 'transparent', color: isPlaying ? 'var(--surface)' : 'inherit' }}>
           {isPlaying ? <Pause size={12} /> : <Play size={12} />}
           {isPlaying ? 'Stop' : 'Play selection'}
         </button>
@@ -3049,7 +4247,7 @@ function PdfDropZone({ onFile, parsing, disabled }) {
       style={{
         borderStyle: 'dashed',
         borderRadius: '2px',
-        background: dragOver ? 'rgba(99,102,241,0.08)' : 'transparent',
+        background: dragOver ? 'var(--accent-tint)' : 'transparent',
         opacity: disabled ? 0.5 : 1,
       }}
       onDragOver={e => { e.preventDefault(); if (!disabled) setDragOver(true); }}
@@ -3082,7 +4280,7 @@ function SpotifyTrackRow({ track, index, questions, onAssign }) {
   const hasPreview = !!track.previewUrl;
 
   return (
-    <div className="flex items-center gap-3 py-2 px-3 hairline" style={{ borderRadius: '2px', background: '#16161a' }}>
+    <div className="flex items-center gap-3 py-2 px-3 hairline" style={{ borderRadius: '2px', background: 'var(--surface)' }}>
       <div className="mono-font text-xs opacity-40 w-6 text-right">{index}</div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold truncate">{track.name}</div>
@@ -3107,7 +4305,7 @@ function SpotifyTrackRow({ track, index, questions, onAssign }) {
         onAssign(parseInt(selectedQ), track, start, end || null);
       }} disabled={!selectedQ}
         className="px-2 py-1 mono-font text-xs uppercase tracking-wider accent-bg"
-        style={{ color: '#16161a', borderRadius: '2px' }}>
+        style={{ color: 'var(--surface)', borderRadius: '2px' }}>
         Assign
       </button>
       {track.externalUrl && (

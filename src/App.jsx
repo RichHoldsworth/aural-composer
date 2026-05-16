@@ -4,21 +4,21 @@ import { supabase, getMyProfile, listExams, saveExam as supaSaveExam, deleteExam
 
 // ===== Default exam =====
 const DEFAULT_QUESTIONS = [
-  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 1. You will hear this extract three times.', source: null },
-  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 2. You will hear this extract three times.', source: null },
-  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Extract 3. You will hear this extract three times.', source: null },
-  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 4. You will hear this extract three times.', source: null },
-  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Extract 5. You will hear this extract three times.', source: null },
-  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Extract 6. You will hear this extract two times.', source: null },
-  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Extract 7. You will hear this extract three times.', source: null },
-  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Extract 8. You will hear this extract three times. This is the final extract.', source: null },
+  { id: 1, label: 'Extract 1', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 1. This extract will be played three times.', source: null },
+  { id: 2, label: 'Extract 2', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 2. This extract will be played three times.', source: null },
+  { id: 3, label: 'Extract 3', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 9, intro: 'Question 3. This extract will be played three times.', source: null },
+  { id: 4, label: 'Extract 4', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 4. This extract will be played three times.', source: null },
+  { id: 5, label: 'Extract 5', plays: 3, gapBetweenPlays: 30, gapAfter: 60, marks: 12, intro: 'Question 5. This extract will be played three times.', source: null },
+  { id: 6, label: 'Extract 6', plays: 2, gapBetweenPlays: 20, gapAfter: 45, marks: 3, intro: 'Question 6. You will hear this extract two times.', source: null },
+  { id: 7, label: 'Extract 7', plays: 3, gapBetweenPlays: 25, gapAfter: 45, marks: 7, intro: 'Question 7. This extract will be played three times.', source: null },
+  { id: 8, label: 'Extract 8', plays: 3, gapBetweenPlays: 25, gapAfter: 30, marks: 8, intro: 'Question 8. This extract will be played three times.', source: null },
 ];
 
 const DEFAULT_SCRIPT = {
-  opening: 'This is the Music listening examination. You will now have five minutes to read through all of the listening questions. You may not write anything during this time.',
-  postReading: 'Your five minutes of reading time is now over. The listening section will now begin.',
+  opening: 'Enter your opening exam instructions here. Set the reading (if included) time above.',
+  postReading: 'Delete if not using: Your five minutes of reading time is now over. The listening section will now begin.',
   // {n} = play number as a numeral (2, 3, 4...). {ord} = ordinal word (second, third, fourth...). {final} expands to " and final" when this is the last play, else empty.
-  betweenPlays: 'You will now hear the extract for the {ord}{final} time.',
+  betweenPlays: 'Here is the extract for the {ord}{final} time.',
   ending: 'This is the end of the listening section of the examination.',
 };
 
@@ -482,8 +482,8 @@ export default function App() {
   };
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-  const [readingTime, setReadingTime] = useState(300);
-  const [examTitle, setExamTitle] = useState('Trinity School — Music Junior Form — Summer 2026');
+  const [readingTime, setReadingTime] = useState(0);
+  const [examTitle, setExamTitle] = useState('Enter you exam title here');
   const [script, setScript] = useState(DEFAULT_SCRIPT);
   const [showScript, setShowScript] = useState(false);
 
@@ -1367,7 +1367,7 @@ export default function App() {
   const testVoice = async () => {
     setTtsTestStatus('loading');
     try {
-      await speakLive('This is a test of the examiner voice. You will hear this extract three times.');
+      await speakLive('This is a test of the examiner voice. This extract will be played three times.');
       setTtsTestStatus('ok');
       setTimeout(() => setTtsTestStatus(null), 2000);
     } catch (err) {
@@ -2234,16 +2234,16 @@ export default function App() {
         }
 
         [data-theme="light"] {
-          --bg-base: #fafaf9;
-          --bg-gradient: linear-gradient(180deg, #fafaf9 0%, #f4f4f1 100%);
+          --bg-base: #f8f7f5;
+          --bg-gradient: radial-gradient(ellipse 1200px 800px at top left, #eef0fb 0%, #f8f7f5 60%);
           --surface: #ffffff;
-          --surface-2: rgba(0,0,0,0.015);
+          --surface-2: #f5f5f3;
           --surface-elev: rgba(0,0,0,0.04);
           --border: rgba(0,0,0,0.1);
           --border-strong: rgba(0,0,0,0.18);
           --text: #18181b;
-          --text-muted: #6b6b6f;
-          --text-dim: #9b9ba0;
+          --text-muted: #5f5f64;
+          --text-dim: #8b8b91;
           --text-faint: #b9b9bd;
           --accent: #4f46e5;
           --accent-soft: #6366f1;
@@ -2256,7 +2256,7 @@ export default function App() {
           --accent2-tint: rgba(8,145,178,0.1);
           --header-bg: rgba(255,255,255,0.7);
           --input-bg: #ffffff;
-          --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.07);
+          --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.06);
           --logo-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(79,70,229,0.25);
           --ink: #f0f0f3;
           --waveform-bg: rgba(0,0,0,0.04);
@@ -3594,113 +3594,130 @@ function AuthScreen({ theme, toggleTheme }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{
       background: 'var(--bg-gradient)',
       color: 'var(--text)',
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
+      paddingTop: '5vh',
+      paddingBottom: '5vh',
     }}>
       <button onClick={toggleTheme}
-        className="absolute top-4 right-4 p-2 hairline"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}
+        style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px',
+          background: 'var(--surface)', color: 'var(--text-muted)', borderRadius: '8px',
+          border: '0.5px solid var(--border)', cursor: 'pointer' }}
         title="Toggle theme">
         {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
       </button>
 
-      <div className="paper hairline" style={{
-        borderRadius: '14px',
-        padding: '32px 28px',
+      <div style={{
+        background: 'var(--surface)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '16px',
+        padding: '36px 32px',
         width: '100%',
-        maxWidth: '380px',
+        maxWidth: '400px',
         boxShadow: 'var(--shadow-card)',
       }}>
-        <div className="flex items-center gap-3 mb-6">
+        {/* Logo + title */}
+        <div className="flex flex-col items-center text-center mb-7">
           <div style={{
-            width: '40px', height: '40px',
+            width: '52px', height: '52px',
             background: 'linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%)',
-            borderRadius: '10px',
+            borderRadius: '13px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: 'var(--logo-shadow)',
+            marginBottom: '16px',
           }}>
-            <Music size={20} color="#ffffff" strokeWidth={2.2} />
+            <Music size={24} color="#ffffff" strokeWidth={2.2} />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight" style={{ letterSpacing: '-0.01em' }}>Aural Composer</h1>
-            <div className="mono-font text-xs" style={{ color: 'var(--text-dim)' }}>
-              {mode === 'signin' && 'Sign in to your account'}
-              {mode === 'signup' && 'Create an account'}
-              {mode === 'reset' && 'Reset your password'}
-            </div>
+          <h1 className="display-font" style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.02em', margin: 0, marginBottom: '4px' }}>Aural Composer</h1>
+          <div className="mono-font" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-dim)' }}>
+            {mode === 'signin' && 'Sign in to your account'}
+            {mode === 'signup' && 'Create an account'}
+            {mode === 'reset' && 'Reset your password'}
           </div>
         </div>
 
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="space-y-4">
           {mode === 'signup' && (
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Name (optional)</label>
+              <label className="mono-font" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>Name (optional)</label>
               <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
                 placeholder="Rich Holdsworth"
-                className="w-full" style={{ fontSize: '14px' }} />
+                className="w-full"
+                style={{ fontSize: '14px', background: 'var(--input-bg)', border: '0.5px solid var(--border-strong)' }} />
             </div>
           )}
           <div>
-            <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Email</label>
+            <label className="mono-font" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               required autoComplete="email"
-              className="w-full" style={{ fontSize: '14px' }} />
+              placeholder="you@example.com"
+              className="w-full"
+              style={{ fontSize: '14px', background: 'var(--input-bg)', border: '0.5px solid var(--border-strong)' }} />
           </div>
           {mode !== 'reset' && (
             <div>
-              <label className="mono-font text-xs uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Password</label>
+              <label className="mono-font" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '6px', display: 'block', fontWeight: 500 }}>Password</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)}
                 required autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                 minLength={8}
-                className="w-full" style={{ fontSize: '14px' }} />
+                placeholder="••••••••"
+                className="w-full"
+                style={{ fontSize: '14px', background: 'var(--input-bg)', border: '0.5px solid var(--border-strong)' }} />
               {mode === 'signup' && (
-                <div className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>At least 8 characters.</div>
+                <div style={{ fontSize: '11px', marginTop: '6px', color: 'var(--text-dim)' }}>At least 8 characters.</div>
               )}
             </div>
           )}
 
           {error && (
-            <div className="text-xs p-2" style={{ background: 'rgba(220,38,38,0.1)', color: '#fca5a5', borderRadius: '6px', border: '0.5px solid rgba(220,38,38,0.3)' }}>
+            <div style={{ fontSize: '12px', padding: '10px 12px', background: 'rgba(220,38,38,0.08)', color: theme === 'dark' ? '#fca5a5' : '#b91c1c', borderRadius: '8px', border: '0.5px solid rgba(220,38,38,0.3)', lineHeight: 1.4 }}>
               {error}
             </div>
           )}
           {message && (
-            <div className="text-xs p-2" style={{ background: 'var(--accent-tint)', color: 'var(--accent-soft)', borderRadius: '6px', border: '0.5px solid var(--accent-border)' }}>
+            <div style={{ fontSize: '12px', padding: '10px 12px', background: 'var(--accent-tint)', color: 'var(--accent)', borderRadius: '8px', border: '0.5px solid var(--accent-border)', lineHeight: 1.4 }}>
               {message}
             </div>
           )}
 
           <button type="submit" disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
-            style={{ borderRadius: '8px', border: 'none' }}>
-            {loading && <Loader2 size={12} className="animate-spin" />}
+            className="w-full flex items-center justify-center gap-2 accent-bg"
+            style={{
+              padding: '11px 16px',
+              fontSize: '13px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              marginTop: '4px',
+            }}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === 'signin' && 'Sign in'}
             {mode === 'signup' && 'Create account'}
             {mode === 'reset' && 'Send reset email'}
           </button>
         </form>
 
-        <div className="mt-5 pt-5 text-xs space-y-2" style={{ borderTop: '0.5px solid var(--border)', color: 'var(--text-muted)' }}>
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '0.5px solid var(--border)', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
           {mode === 'signin' && (
             <>
-              <div>Don't have an account? <button onClick={() => { setMode('signup'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Create one</button></div>
-              <div>Forgot your password? <button onClick={() => { setMode('reset'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Reset it</button></div>
+              <div>Don't have an account? <button type="button" onClick={() => { setMode('signup'); setError(null); setMessage(null); }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>Create one</button></div>
+              <div>Forgot your password? <button type="button" onClick={() => { setMode('reset'); setError(null); setMessage(null); }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>Reset it</button></div>
             </>
           )}
           {mode === 'signup' && (
-            <div>Already have an account? <button onClick={() => { setMode('signin'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Sign in</button></div>
+            <div>Already have an account? <button type="button" onClick={() => { setMode('signin'); setError(null); setMessage(null); }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>Sign in</button></div>
           )}
           {mode === 'reset' && (
-            <div>Remembered? <button onClick={() => { setMode('signin'); setError(null); setMessage(null); }} className="accent underline" style={{ background: 'transparent' }}>Sign in</button></div>
+            <div>Remembered? <button type="button" onClick={() => { setMode('signin'); setError(null); setMessage(null); }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>Sign in</button></div>
           )}
         </div>
+      </div>
 
-        <div className="mt-6 text-xs" style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
-          New accounts require approval before you can save and share exams.
-          This is a private workspace for invited colleagues only.
-        </div>
+      <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center', maxWidth: '380px', lineHeight: 1.6 }}>
+        A private workspace for music teachers. New accounts require approval before saving and sharing exams.
       </div>
     </div>
   );
@@ -3715,45 +3732,49 @@ function PendingApprovalScreen({ profile, onSignOut, theme, toggleTheme }) {
       fontFamily: "'Geist', system-ui, -apple-system, sans-serif",
     }}>
       <button onClick={toggleTheme}
-        className="absolute top-4 right-4 p-2 hairline"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', borderRadius: '8px' }}>
+        style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px',
+          background: 'var(--surface)', color: 'var(--text-muted)', borderRadius: '8px',
+          border: '0.5px solid var(--border)', cursor: 'pointer' }}>
         {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
       </button>
 
-      <div className="paper hairline" style={{
-        borderRadius: '14px',
-        padding: '32px 28px',
+      <div style={{
+        background: 'var(--surface)',
+        border: '0.5px solid var(--border)',
+        borderRadius: '16px',
+        padding: '36px 32px',
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: '440px',
         boxShadow: 'var(--shadow-card)',
         textAlign: 'center',
       }}>
         <div style={{
-          width: '52px', height: '52px',
+          width: '56px', height: '56px',
           background: 'var(--accent-tint-strong)',
-          borderRadius: '12px',
+          borderRadius: '14px',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: '16px',
+          marginBottom: '18px',
+          border: '0.5px solid var(--accent-border)',
         }}>
-          <Mail size={24} className="accent" />
+          <Mail size={26} className="accent" />
         </div>
-        <h1 className="text-xl font-semibold mb-2" style={{ letterSpacing: '-0.01em' }}>Awaiting approval</h1>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          Thanks for signing up, <strong>{profile.email}</strong>. An admin will approve your account shortly. You'll be able to use the app as soon as they do.
+        <h1 className="display-font" style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.02em', margin: 0, marginBottom: '10px' }}>Awaiting approval</h1>
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '18px' }}>
+          Thanks for signing up, <strong style={{ color: 'var(--text)' }}>{profile.email}</strong>. An admin will approve your account shortly. You'll be able to use the app as soon as they do.
         </p>
-        <p className="text-xs mb-6" style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
-          Refresh this page once you've been approved to access the app.
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.5, marginBottom: '24px' }}>
+          Refresh this page once you've been approved.
         </p>
         <div className="flex flex-col gap-2">
           <button onClick={() => window.location.reload()}
-            className="w-full py-2 mono-font text-xs uppercase tracking-wider font-semibold accent-bg"
-            style={{ borderRadius: '8px', border: 'none' }}>
-            <RefreshCw size={11} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-1px' }} />
+            className="w-full accent-bg flex items-center justify-center gap-2"
+            style={{ padding: '11px 16px', fontSize: '13px', fontWeight: 600, borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+            <RefreshCw size={13} />
             Check again
           </button>
           <button onClick={onSignOut}
-            className="w-full py-2 hairline mono-font text-xs uppercase tracking-wider"
-            style={{ background: 'transparent', color: 'var(--text-muted)', borderRadius: '8px' }}>
+            className="w-full"
+            style={{ padding: '11px 16px', fontSize: '13px', background: 'transparent', color: 'var(--text-muted)', borderRadius: '8px', border: '0.5px solid var(--border)', cursor: 'pointer' }}>
             Sign out
           </button>
         </div>

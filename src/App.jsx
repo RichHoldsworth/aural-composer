@@ -436,6 +436,8 @@ export default function App() {
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
   // Whether the setup card is collapsed (auto-collapses once user has extracts with audio)
   const [setupCollapsed, setSetupCollapsed] = useState(false);
+  // Whether files are currently being dragged anywhere over the window (for full-window drop overlay)
+  const [windowDragActive, setWindowDragActive] = useState(false);
   const dismissWelcome = () => {
     setShowWelcomeBanner(false);
     localStorage.setItem('aural_welcome_dismissed', '1');
@@ -695,6 +697,58 @@ export default function App() {
       });
     } catch (err) {
       alert(`Could not decode audio file: ${err.message}`);
+    }
+  };
+
+  // Bulk-upload audio files. Files are distributed in order across the empty extract slots.
+  // If there are more files than empty slots, the remainder are reported back as skipped.
+  // If there are no empty slots at all, we offer to overwrite from the top.
+  const handleMultipleFileUpload = async (files) => {
+    const audioFiles = Array.from(files || []).filter(f => f && f.type.startsWith('audio/'));
+    if (audioFiles.length === 0) return;
+
+    // Build the assignment list
+    const emptyIndices = questions
+      .map((q, idx) => ({ idx, id: q.id, hasSource: !!q.source }))
+      .filter(x => !x.hasSource);
+
+    let assignments;
+    if (emptyIndices.length === 0) {
+      // No empty slots — confirm overwrite
+      const proceed = window.confirm(
+        `All ${questions.length} extracts already have audio.\n\nOverwrite the first ${Math.min(audioFiles.length, questions.length)} starting from extract 1?`
+      );
+      if (!proceed) return;
+      assignments = questions.slice(0, audioFiles.length).map((q, i) => ({ id: q.id, file: audioFiles[i] }));
+    } else {
+      // Fill empty slots in order, queue overflow as unassigned
+      const used = Math.min(emptyIndices.length, audioFiles.length);
+      assignments = emptyIndices.slice(0, used).map((slot, i) => ({ id: slot.id, file: audioFiles[i] }));
+    }
+
+    const skipped = audioFiles.length - assignments.length;
+
+    // Process assignments sequentially so the UI doesn't get hammered
+    let successCount = 0;
+    const failed = [];
+    for (const { id, file } of assignments) {
+      try {
+        await handleFileUpload(id, file);
+        successCount++;
+      } catch (err) {
+        failed.push(file.name);
+      }
+    }
+
+    // Report results
+    const parts = [];
+    if (successCount > 0) parts.push(`Loaded ${successCount} audio file${successCount === 1 ? '' : 's'}`);
+    if (skipped > 0) parts.push(`${skipped} file${skipped === 1 ? '' : 's'} skipped (no empty slots)`);
+    if (failed.length > 0) parts.push(`${failed.length} failed: ${failed.join(', ')}`);
+    if (parts.length > 0) {
+      // Use a non-blocking toast-style notification if possible; alert as fallback
+      console.log('Bulk upload:', parts.join(' · '));
+      alert(parts.join('\n'));
     }
   };
 
@@ -2100,6 +2154,49 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filledCount > 0]);
 
+  // ===== Window-level drag overlay for bulk audio uploads =====
+  // Show the overlay whenever audio files are being dragged anywhere over the page.
+  // Uses a counter on dragenter/dragleave so child elements don't cause flicker.
+  useEffect(() => {
+    let dragCounter = 0;
+    const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+    const onDragEnter = (e) => {
+      if (!hasFiles(e)) return;
+      dragCounter++;
+      if (dragCounter === 1) setWindowDragActive(true);
+    };
+    const onDragLeave = (e) => {
+      if (!hasFiles(e)) return;
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        setWindowDragActive(false);
+      }
+    };
+    const onDragOver = (e) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const onDrop = (e) => {
+      dragCounter = 0;
+      setWindowDragActive(false);
+      // If the drop landed on an element that handles its own audio drop (e.g. the inspector file
+      // drop zone or a single-extract drag), let that handler run. We detect this by checking the
+      // dataTransfer for a custom 'text/x-extract-index' type used for reordering — not relevant
+      // here — and by NOT preventing default in those targets. The window overlay only handles
+      // bulk drops when the drop happens on the overlay itself (see overlay div's onDrop).
+    };
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
+
   // ===== Keyboard shortcuts ===== (placed here so all referenced state/functions are defined)
   useEffect(() => {
     const handler = (e) => {
@@ -2709,6 +2806,63 @@ export default function App() {
 
       <div className="yt-hidden"><div ref={ytContainerRef}></div></div>
 
+      {/* Full-window drag overlay for bulk audio upload */}
+      {windowDragActive && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setWindowDragActive(false);
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              await handleMultipleFileUpload(files);
+            }
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(14,16,22,0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto',
+            animation: 'fadeIn 0.12s ease',
+          }}>
+          <div style={{
+            border: '1.5px dashed var(--accent-soft)',
+            background: 'var(--accent-tint-strong)',
+            borderRadius: 'var(--r-lg)',
+            padding: '40px 56px',
+            textAlign: 'center',
+            maxWidth: '480px',
+            pointerEvents: 'none', // overlay catches the drop; inner box is decorative
+          }}>
+            <div style={{
+              width: 56, height: 56,
+              borderRadius: 'var(--r-md)',
+              background: 'var(--surface-elev)',
+              border: '0.5px solid var(--accent-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+              color: 'var(--accent-soft)',
+            }}>
+              <Upload size={26} />
+            </div>
+            <div className="display-font" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+              Drop audio files to bulk-load
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Files will fill empty extracts in order.<br />
+              {questions.filter(q => !q.source).length > 0
+                ? `${questions.filter(q => !q.source).length} empty slot${questions.filter(q => !q.source).length === 1 ? '' : 's'} available.`
+                : 'All extracts already have audio — you\'ll be asked before overwriting.'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast notifications */}
       {showAdminPanel && (
         <AdminPanel onClose={() => setShowAdminPanel(false)} onChange={reloadCloudExams} />
@@ -3225,6 +3379,14 @@ export default function App() {
               <h2 className="display-font font-semibold" style={{ fontSize: '15px', letterSpacing: '-0.01em' }}>Extracts</h2>
               <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{filledCount}/{questions.length} ready</div>
             </div>
+
+            {/* Small always-visible bulk drop zone */}
+            <BulkUploadStrip
+              emptyCount={questions.filter(q => !q.source).length}
+              totalCount={questions.length}
+              onFiles={handleMultipleFileUpload}
+              disabled={isCompiling || livePlaying}
+            />
 
             <div className="space-y-1.5">
               {questions.map((q, idx) => (
@@ -4929,6 +5091,7 @@ function ExtractInspector({
   const hasAudio = !!q.source;
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('audio/')) onFileUpload(q.id, file);
@@ -5167,6 +5330,65 @@ function ExtractInspector({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// BulkUploadStrip — small always-visible drop zone above the extract list.
+// Accepts multi-file drops or click-to-browse with multiple selection.
+// ============================================================
+function BulkUploadStrip({ emptyCount, totalCount, onFiles, disabled }) {
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+  const allFull = emptyCount === 0 && totalCount > 0;
+
+  return (
+    <div
+      onDragOver={(e) => {
+        if (Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(true);
+        }
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+        if (disabled) return;
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          await onFiles(files);
+        }
+      }}
+      className="flex items-center gap-3 mb-3"
+      style={{
+        padding: '8px 12px',
+        background: dragOver ? 'var(--accent-tint-strong)' : 'var(--surface-2)',
+        border: '0.5px dashed ' + (dragOver ? 'var(--accent-border)' : 'var(--border-strong)'),
+        borderRadius: 'var(--r-md)',
+        transition: 'background 0.12s, border-color 0.12s',
+      }}>
+      <Upload size={13} style={{ color: dragOver ? 'var(--accent-soft)' : 'var(--text-dim)', flexShrink: 0 }} />
+      <div className="flex-1 min-w-0" style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+        <strong style={{ color: 'var(--text)', fontWeight: 500 }}>Bulk upload:</strong>{' '}
+        {allFull
+          ? 'all extracts already have audio. Drop here to replace from the top.'
+          : <>drop multiple audio files anywhere to fill the <strong style={{ color: 'var(--text)', fontWeight: 500 }}>{emptyCount}</strong> empty slot{emptyCount === 1 ? '' : 's'} in order.</>
+        }
+      </div>
+      <button onClick={() => fileInputRef.current?.click()} disabled={disabled}
+        className="btn btn-ghost btn-sm flex-shrink-0">
+        Choose files
+      </button>
+      <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden"
+        onChange={async (e) => {
+          const files = e.target.files;
+          if (files && files.length > 0) await onFiles(files);
+          e.target.value = ''; // allow re-selecting same files
+        }} />
     </div>
   );
 }
